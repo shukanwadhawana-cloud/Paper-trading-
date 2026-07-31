@@ -76,8 +76,8 @@ bingx = ccxt.bingx({
 })
 
 
-def fetch_binance_data(symbol, timeframe="15m", limit=500):
-    candles = binance.fetch_ohlcv(
+def fetch_exchange_data(symbol, timeframe="15m", limit=500):
+    candles = bingx.fetch_ohlcv(
         symbol,
         timeframe=timeframe,
         limit=limit
@@ -103,7 +103,6 @@ def fetch_binance_data(symbol, timeframe="15m", limit=500):
     df.set_index("timestamp", inplace=True)
 
     return df
-
 
 # ================= HELPERS =================
 def flatten_columns(df: pd.DataFrame) -> pd.DataFrame:
