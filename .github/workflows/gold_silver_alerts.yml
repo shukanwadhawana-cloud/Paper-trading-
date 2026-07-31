@@ -1,0 +1,70 @@
+name: Gold/Silver SMC Alerts
+
+on:
+  schedule:
+    - cron: '*/15 * * * *'
+  workflow_dispatch:
+
+concurrency:
+  group: gold-silver-alerts
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  run-alerts:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run signal script
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: python main.py
+
+      - name: Run paper trade monitor
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: python paper_trade_monitor.py
+
+      - name: Commit updated signal state
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          git add last_signals.json paper_trades.csv
+
+          if git diff --staged --quiet; then
+            echo "No changes to commit."
+            exit 0
+          fi
+
+          git commit -m "Update signal state and trade log [skip ci]"
+
+          for attempt in 1 2 3; do
+            if git pull --rebase origin main && git push; then
+              echo "Commit succeeded on attempt $attempt"
+              exit 0
+            fi
+
+            echo "Push attempt $attempt failed, retrying in 5s..."
+
+            git rebase --abort 2>/dev/null || true
+
+            sleep 5
+          done
+
+          echo "::warning::Commit failed after 3 attempts."
+          exit 1
