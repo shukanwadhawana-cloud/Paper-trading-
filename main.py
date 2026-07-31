@@ -66,6 +66,42 @@ BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN")
 CHAT_ID   = os.environ.get("TELEGRAM_CHAT_ID")
 
 
+# ================= BINANCE DATA =================
+
+binance = ccxt.binance({
+    "enableRateLimit": True
+})
+
+
+def fetch_binance_data(symbol, timeframe="15m", limit=500):
+    candles = binance.fetch_ohlcv(
+        symbol,
+        timeframe=timeframe,
+        limit=limit
+    )
+
+    df = pd.DataFrame(
+        candles,
+        columns=[
+            "timestamp",
+            "Open",
+            "High",
+            "Low",
+            "Close",
+            "Volume"
+        ]
+    )
+
+    df["timestamp"] = pd.to_datetime(
+        df["timestamp"],
+        unit="ms"
+    )
+
+    df.set_index("timestamp", inplace=True)
+
+    return df
+
+
 # ================= HELPERS =================
 def flatten_columns(df: pd.DataFrame) -> pd.DataFrame:
     """yfinance sometimes returns MultiIndex columns like ('Close', 'GC=F').
