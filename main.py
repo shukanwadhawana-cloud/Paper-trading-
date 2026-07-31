@@ -20,7 +20,7 @@ import os
 import json
 import numpy as np
 import pandas as pd
-import yfinance as yf
+import ccxt
 import requests
 
 from paper_trading import record_trade
