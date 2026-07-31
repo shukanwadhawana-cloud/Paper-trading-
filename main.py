@@ -66,10 +66,13 @@ BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN")
 CHAT_ID   = os.environ.get("TELEGRAM_CHAT_ID")
 
 
-# ================= BINANCE DATA =================
+# ================= BINGX DATA =================
 
-binance = ccxt.binance({
-    "enableRateLimit": True
+bingx = ccxt.bingx({
+    "enableRateLimit": True,
+    "options": {
+        "defaultType": "swap"
+    }
 })
 
 
