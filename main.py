@@ -331,8 +331,8 @@ def process_symbol(label, cfg, state):
     ticker = cfg["ticker"]
     use_sessions = cfg["use_sessions"]
 
-    df15 = yf.download(ticker, period="5d", interval="15m", progress=False)
-    df1h = yf.download(ticker, period="60d", interval="60m", progress=False)
+    df15 = fetch_binance_data(ticker, "15m", 500)
+    df1h = fetch_binance_data(ticker, "1h", 500)
 
     if df15.empty or df1h.empty or len(df15) < STRUCTURE_SIZE * 2 + 2:
         print(f"{label}: not enough data this run, skipping.")
