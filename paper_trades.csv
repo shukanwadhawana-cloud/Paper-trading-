@@ -1,0 +1,1 @@
+trade_id,date,time,asset,ticker,direction,entry,sl,tp,confidence,structure,session_ok,htf_ok,status,opened_at_utc,entry_time_utc,exit_price,exit_reason,realized_r,realized_pnl,duration_bars,duration_wall_clock,closed_at_utc,last_notified_level_r,close_notified
