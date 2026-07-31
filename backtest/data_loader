@@ -1,0 +1,94 @@
+"""
+Backtest Data Loader - Phase 1 of the approved backtesting framework.
+
+Responsible only for fetching and locally caching historical OHLC data.
+No detection, signal, or trade logic lives here - that stays in main.py
+and is imported, never duplicated (per approved architecture rule 3).
+
+Isolation guarantee: this module imports ONLY flatten_columns() from
+main.py - a pure data-cleaning helper with no side effects. It never
+imports send_telegram, record_trade, load_state, or save_state, so no
+code path here can touch the live bot's Telegram, trade log, or dedup
+state. main.py is not modified by this file's existence.
+"""
+
+import os
+import pandas as pd
+import yfinance as yf
+
+from main import flatten_columns
+
+CACHE_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data_cache")
+
+# Fetch periods chosen to maximize backtest sample size within yfinance's
+# real limits - deliberately different from main.py's live-mode periods
+# (period="5d" for 15m, period="60d" for 1h), which are sized for live
+# freshness, not historical sample size. yfinance's actual ceilings are
+# ~60 days for 15m data and ~730 days for 60m data.
+BACKTEST_PERIODS = {
+    "15m": "60d",
+    "60m": "730d",
+}
+
+
+def _cache_path(ticker: str, interval: str, period: str) -> str:
+    safe_ticker = ticker.replace("=", "_").replace("/", "_")
+    return os.path.join(CACHE_DIR, f"{safe_ticker}_{interval}_{period}.csv")
+
+
+def fetch_ohlc(ticker: str, interval: str, period: str = None, use_cache: bool = True) -> pd.DataFrame:
+    """
+    Fetch OHLC data for one ticker/interval, using a local CSV cache to avoid
+    re-downloading identical data on repeated backtest runs within the same day.
+
+    Note on cache freshness: yfinance's "period" windows are relative to today,
+    so a cache created on one day will not automatically pick up newer bars on
+    a later day. For Phase 1 (single historical backtest), this is acceptable -
+    delete the relevant file in data_cache/ to force a fresh download when needed.
+    Revisit if walk-forward (a later approved phase) needs automatic staleness handling.
+    """
+    if period is None:
+        period = BACKTEST_PERIODS.get(interval)
+        if period is None:
+            raise ValueError(f"No default backtest period configured for interval '{interval}'")
+
+    os.makedirs(CACHE_DIR, exist_ok=True)
+    path = _cache_path(ticker, interval, period)
+
+    if use_cache and os.path.exists(path):
+        df = pd.read_csv(path, index_col=0, parse_dates=True)
+        if df.index.tz is None:
+            df.index = df.index.tz_localize("UTC")
+        return df
+
+    df = yf.download(ticker, period=period, interval=interval, progress=False)
+    if df.empty:
+        raise ValueError(f"No data returned for {ticker} at interval {interval}, period {period}")
+
+    df = flatten_columns(df)
+    df = df[["Open", "High", "Low", "Close"]]
+
+    df.to_csv(path)
+    return df
+
+
+def load_symbol_data(ticker: str, use_cache: bool = True) -> dict:
+    """
+    Fetch all three timeframes the detection engine needs for one symbol:
+    15m (signal timeframe), 1h and derived 4h (HTF confirmation).
+
+    The 4h resample uses the exact same method main.py's process_symbol()
+    uses (resample("4h") from 1h data) - kept identical so a backtest sees
+    the same HTF bars the live bot would have computed, not an independently
+    derived approximation.
+
+    Returns: {"15m": DataFrame, "1h": DataFrame, "4h": DataFrame}
+    """
+    df15 = fetch_ohlc(ticker, "15m", use_cache=use_cache)
+    df1h = fetch_ohlc(ticker, "60m", use_cache=use_cache)
+
+    df4h = df1h.resample("4h").agg(
+        {"Open": "first", "High": "max", "Low": "min", "Close": "last"}
+    ).dropna()
+
+    return {"15m": df15, "1h": df1h, "4h": df4h}
