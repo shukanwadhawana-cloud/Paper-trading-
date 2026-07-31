@@ -32,10 +32,16 @@ from trade_manager import is_executable
 # Bitcoin/Ethereum trade 24/7/365 - forcing them through forex sessions would suppress
 # valid signals outside those windows, so session filtering is off for them by default.
 SYMBOLS = {
-    "Gold (XAU/USD)":     {"ticker": "GC=F",    "use_sessions": True},
-    "Silver (XAG/USD)":   {"ticker": "SI=F",    "use_sessions": True},
-    "Bitcoin (BTC/USD)":  {"ticker": "BTC-USD", "use_sessions": False},
-    "Ethereum (ETH/USD)": {"ticker": "ETH-USD", "use_sessions": False},
+    "Gold (XAUT/USDT)": {"ticker": "XAUT/USDT", "use_sessions": True},
+
+    "Bitcoin (BTC/USDT)": {"ticker": "BTC/USDT", "use_sessions": False},
+    "Ethereum (ETH/USDT)": {"ticker": "ETH/USDT", "use_sessions": False},
+
+    "Solana (SOL/USDT)": {"ticker": "SOL/USDT", "use_sessions": False},
+    "BNB (BNB/USDT)": {"ticker": "BNB/USDT", "use_sessions": False},
+    "XRP (XRP/USDT)": {"ticker": "XRP/USDT", "use_sessions": False},
+    "Chainlink (LINK/USDT)": {"ticker": "LINK/USDT", "use_sessions": False},
+    "Avalanche (AVAX/USDT)": {"ticker": "AVAX/USDT", "use_sessions": False},
 }
 
 RR_RATIO       = 4.0     # 1:4. Change to 5.0 for 1:5, etc.
