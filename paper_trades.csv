@@ -1,1 +1,2 @@
 trade_id,date,time,asset,ticker,direction,entry,sl,tp,confidence,structure,session_ok,htf_ok,status,opened_at_utc,entry_time_utc,exit_price,exit_reason,realized_r,realized_pnl,duration_bars,duration_wall_clock,closed_at_utc,last_notified_level_r,close_notified
+AVAX/USDT-20260801T073000-SELL,2026-08-01,07:30:00,Avalanche (AVAX/USDT),AVAX/USDT,SELL,6.39000,6.43121,6.22514,HIGH,CHOCH,True,True,OPEN,2026-08-01T08:51:29.476321+00:00,2026-08-01T07:30:00,,,,,,,,0,
