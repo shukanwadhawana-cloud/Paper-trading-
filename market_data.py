@@ -263,15 +263,6 @@ def get_default_provider() -> MarketDataProvider:
 
 def get_provider_for_ticker(ticker: str) -> MarketDataProvider:
     """
-    Routes a specific ticker to the correct provider. This is what lets
-    the Paper Trade Monitor correctly serve BOTH currently-possible
-    trades (Yahoo-style tickers - GC=F, SI=F, BTC-USD, ETH-USD - since
-    main.py's SYMBOLS dict is frozen this milestone and only ever
-    produces these) AND Binance-style trades (XAUUSDT, BTCUSDT, etc. -
-    once some future entry mechanism produces them) without a single
-    blanket provider choice breaking one or the other.
+    Always use the BingX provider.
     """
-    from symbols_config import is_binance_symbol
-    if is_binance_symbol(ticker):
-        return BinanceFuturesProvider()
-    return YahooFinanceProvider()
+    return BingXFuturesProvider()
