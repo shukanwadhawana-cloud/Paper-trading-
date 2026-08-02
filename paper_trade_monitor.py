@@ -123,7 +123,7 @@ def _maybe_notify_trailing_level(trade_row: dict, locked_level_r: float):
         return
 
     msg = (
-        f"Trailing profit locked — {trade_row['asset']}\n"
+        f"Trailing profit locked â {trade_row['asset']}\n"
         f"Trade ID: {trade_id}\n"
         f"Locked level: +{new_level:g}R"
     )
@@ -173,7 +173,7 @@ def _close_and_notify(trade_row: dict, result: dict, execution_layer):
 
 def _send_close_message(trade_id, trade_row, position, realized_r, realized_pnl, duration_wall_clock):
     msg = (
-        f"Trade Closed — {trade_row['asset']}\n"
+        f"Trade Closed â {trade_row['asset']}\n"
         f"Trade ID: {trade_id}\n"
         f"{trade_row['direction']}\n"
         f"Exit reason: {position.exit_reason}\n"
@@ -204,7 +204,7 @@ def _retry_unnotified_closes():
         duration_wall_clock = row["duration_wall_clock"]
 
         msg = (
-            f"Trade Closed — {row['asset']}\n"
+            f"Trade Closed â {row['asset']}\n"
             f"Trade ID: {trade_id}\n"
             f"{row['direction']}\n"
             f"Exit reason: {exit_reason}\n"
@@ -304,7 +304,7 @@ def _skip_trade_entry_validity(trade_row: dict, current_price: float, boundary_p
         return
 
     msg = (
-        f"Trade Skipped — {trade_row['asset']}\n"
+        f"Trade Skipped â {trade_row['asset']}\n"
         f"Trade ID: {trade_id}\n"
         f"{direction}\n"
         f"Planned Entry: {entry:.5f}\n"
@@ -361,6 +361,11 @@ def run_monitor():
                     # real locked level (which are always >= 0), so the
                     # first genuine trailing level still correctly fires
                     # its own notification later.
+                    # Notify once when paper trade becomes active
+                    if send_telegram(
+                        f"ð Paper Trade Opened â {row['asset']}\nTrade ID: {trade_id}\nDirection: {row['direction']}\nEntry: {float(row['entry']):.5f}\nSL: {float(row['sl']):.5f}\nTP: {float(row.get('tp',0)):.5f}"
+                    ):
+                        print(f"{trade_id}: open notification sent.")
                     update_trailing_notification(trade_id, -1.0)
 
                 result = resolve_open_trade(row, provider)
