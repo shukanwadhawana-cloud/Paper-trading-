@@ -258,14 +258,7 @@ class BingXFuturesProvider(MarketDataProvider):
 
 
 def get_default_provider() -> MarketDataProvider:
-    """
-    Unchanged from before this milestone: still returns Yahoo. Kept for
-    backward compatibility with anything relying on a single, generic
-    default. paper_trade_monitor.py now uses get_provider_for_ticker()
-    below instead, so it can route each trade to the correct provider
-    rather than assuming one provider for everything.
-    """
-    return YahooFinanceProvider()
+    return BingXFuturesProvider()
 
 
 def get_provider_for_ticker(ticker: str) -> MarketDataProvider:
