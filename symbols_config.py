@@ -32,11 +32,11 @@ BINANCE_SYMBOLS = {
 
 
 def is_binance_symbol(ticker: str) -> bool:
+    ticker = ticker.replace("/", "").replace("-", "").upper()
     return ticker in BINANCE_SYMBOLS
 
 
 def is_tradfi_perpetual(ticker: str) -> bool:
-    """True if `ticker` requires the continuousKlines/TRADIFI_PERPETUAL
-    fallback path rather than the standard /fapi/v1/klines endpoint."""
+    ticker = ticker.replace("/", "").replace("-", "").upper()
     entry = BINANCE_SYMBOLS.get(ticker)
     return bool(entry and entry.get("tradfi_perpetual"))
