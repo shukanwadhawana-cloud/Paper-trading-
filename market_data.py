@@ -222,23 +222,24 @@ class BinanceFuturesProvider(MarketDataProvider):
 
     def get_current_price(self, symbol: str) -> float:
         import requests
+
         symbol = symbol.replace("/", "")
 
-        try:
-            resp = requests.get(f"{self.BASE_URL}/fapi/v1/ticker/price",
-                                 params={"symbol": symbol}, timeout=10)
-            resp.raise_for_status()
-            return float(resp.json()["price"])
-        except requests.RequestException:
-            # Defensive fallback: derive from the latest available bar
-            # close if the dedicated ticker endpoint fails for any reason
-            # (this also naturally exercises the TradFi fallback path in
-            # get_bars() above for XAUUSDT/XAGUSDT if needed).
-            df = self.get_bars(symbol, interval="1m", period="1h")
-            if df.empty:
-                raise
-            return float(df["Close"].iloc[-1])
+        resp = requests.get(
+            f"{self.BASE_URL}/fapi/v1/ticker/price",
+        params={"symbol": symbol},
+        timeout=10,
+        )
+        resp.raise_for_status()
 
+        data = resp.json()
+
+        if "price" not in data:
+            raise ValueError(
+                f"BinanceProvider: unexpected ticker response for {symbol}: {data}"
+            )
+
+    return float(data["price"])
 
 class BingXFuturesProvider(MarketDataProvider):
     """NOT YET IMPLEMENTED. Reserves the interface for future BingX
