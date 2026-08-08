@@ -34,6 +34,18 @@ verified against the real live endpoint once deployed with real network
 access - if the standard endpoint turns out to work directly for these
 two symbols, the fallback path simply never triggers and this remains
 correct; if it doesn't, the fallback handles it automatically either way.
+
+PROVIDER ROUTING FIX (this revision): get_provider_for_ticker() and
+get_default_provider() previously routed based on either an exact-match
+dict lookup (fragile against ticker format variations like "ETH/USDT"
+vs "ETHUSDT") or, in a later edit, were hardcoded to unconditionally
+return BingXFuturesProvider() - an unimplemented placeholder that raises
+NotImplementedError for every call. Both were bugs. Routing is now based
+on a normalized (separator/case-insensitive) comparison against
+symbols_config.BINANCE_SYMBOLS, with a pattern-based fallback for
+Binance-style USDT-margined tickers not yet explicitly registered there,
+and never selects BingXFuturesProvider. See _normalize_ticker(),
+_is_binance_ticker(), _is_yahoo_ticker() below.
 """
 
 import re
@@ -138,24 +150,11 @@ class BinanceFuturesProvider(MarketDataProvider):
 
     BASE_URL = "https://fapi.binance.com"
     KLINES_LIMIT = 1500  # Binance's documented max per call for USDS-margined futures klines
-    MAX_PAGES = 20        # safety valve: 20 x 1500 x 15min ≈ 312 days - far beyond any realistic open-trade duration
+    MAX_PAGES = 20        # safety valve: 20 x 1500 x 15min ~= 312 days - far beyond any realistic open-trade duration
 
     def get_bars(self, symbol: str, interval: str, start=None, period=None) -> pd.DataFrame:
         import requests
 
-        # PRODUCTION FIX: the previous version made exactly one request
-        # with limit=500. Binance's klines/continuousKlines endpoints cap
-        # each RESPONSE at `limit` bars, returning the OLDEST bars in the
-        # requested window first (not the most recent) when more data
-        # exists than `limit` allows. For a trade left open longer than
-        # 500 bars x 15min (~3.6 days) - a routine occurrence, not an edge
-        # case, for a system explicitly designed to hold trades for days -
-        # the old code would silently receive a truncated, STALE window
-        # (entry_time to entry_time+~3.6 days) and never see the bars
-        # covering everything since, making the trade's SL/trailing
-        # resolution silently wrong. This is paginated below so the full
-        # range from `start` to now is always retrieved, regardless of
-        # how long the trade has been open.
         start_ts = None
         if start is not None:
             start_ts = pd.Timestamp(start)
@@ -242,7 +241,10 @@ class BinanceFuturesProvider(MarketDataProvider):
 
 class BingXFuturesProvider(MarketDataProvider):
     """NOT YET IMPLEMENTED. Reserves the interface for future BingX
-    Futures API integration. No exchange connection exists."""
+    Futures API integration. No exchange connection exists. NEVER
+    selected by get_provider_for_ticker()/get_default_provider() below -
+    routing to an unimplemented placeholder would raise NotImplementedError
+    for every single call, regardless of ticker."""
 
     def get_bars(self, symbol: str, interval: str, start=None, period=None) -> pd.DataFrame:
         raise NotImplementedError(
@@ -257,12 +259,89 @@ class BingXFuturesProvider(MarketDataProvider):
         )
 
 
+def _normalize_ticker(ticker: str) -> str:
+    """
+    Strips common separators and normalizes case so different formats of
+    the same symbol compare equal - 'ETH/USDT', 'eth-usdt', 'ETH_USDT',
+    and 'ETHUSDT' all normalize to 'ETHUSDT'. This is what the previous
+    exact-match routing lacked, causing any non-canonical ticker format
+    to silently fail its Binance-membership check and fall through to
+    Yahoo (see module docstring).
+    """
+    return re.sub(r"[/\-_\s]", "", ticker).upper()
+
+
+def _is_binance_ticker(ticker: str) -> bool:
+    """
+    True if `ticker`, in any common separator/case style, refers to a
+    Binance Futures symbol. Checks symbols_config.BINANCE_SYMBOLS first
+    (the explicit, verified registry) via a normalized comparison, then
+    falls back to a naming-convention check (ends in USDT, not a Yahoo
+    futures-style ticker) so a Binance-style ticker not yet added to that
+    registry still routes correctly rather than silently defaulting to
+    Yahoo.
+    """
+    normalized = _normalize_ticker(ticker)
+
+    try:
+        from symbols_config import BINANCE_SYMBOLS
+        registered = {_normalize_ticker(s) for s in BINANCE_SYMBOLS}
+        if normalized in registered:
+            return True
+    except ImportError:
+        pass
+
+    return normalized.endswith("USDT") and "=" not in ticker
+
+
+def _is_yahoo_ticker(ticker: str) -> bool:
+    """
+    True if `ticker` matches Yahoo Finance's known formats used elsewhere
+    in this project: futures contracts ('GC=F', 'SI=F') or hyphenated
+    spot pairs ('BTC-USD', 'ETH-USD'). Deliberately checked only AFTER
+    _is_binance_ticker() by the caller, so a ticker like 'BTC-USDT'
+    (hyphenated Binance-style, if it ever occurred) would still correctly
+    resolve to Binance via the USDT-suffix check first.
+    """
+    return "=F" in ticker or ("-" in ticker and not _normalize_ticker(ticker).endswith("USDT"))
+
+
 def get_default_provider() -> MarketDataProvider:
-    return BingXFuturesProvider()
+    """
+    Generic default for callers that don't have a specific ticker to
+    route by. Returns YahooFinanceProvider() - restored to its original,
+    correct behavior. (A prior edit had this hardcoded to
+    BingXFuturesProvider(), an unimplemented placeholder that would raise
+    NotImplementedError for every call - see module docstring.)
+    paper_trade_monitor.py's real per-trade routing goes through
+    get_provider_for_ticker() below, not this function.
+    """
+    return YahooFinanceProvider()
 
 
 def get_provider_for_ticker(ticker: str) -> MarketDataProvider:
     """
-    Always use the BingX provider.
+    Routes a specific ticker to the correct provider based on its format,
+    regardless of separator style or case (ETHUSDT, ETH/USDT, eth-usdt
+    all route identically to Binance; BTC-USD, GC=F route to Yahoo).
+    Never routes to BingXFuturesProvider, since it is an unimplemented
+    placeholder - see module docstring for why this matters and what the
+    previous bug was.
     """
-    return BingXFuturesProvider()
+    if _is_binance_ticker(ticker):
+        return BinanceFuturesProvider()
+    if _is_yahoo_ticker(ticker):
+        return YahooFinanceProvider()
+
+    # Ticker format doesn't match any known pattern. Rather than silently
+    # guessing (the root cause of the original bug), default to Binance -
+    # this project's live market-data target - while making the
+    # ambiguity visible instead of failing deep inside a provider with a
+    # confusing, unrelated-looking error.
+    import warnings
+    warnings.warn(
+        f"get_provider_for_ticker: {ticker!r} did not match any known Binance or "
+        f"Yahoo ticker format - defaulting to BinanceFuturesProvider. If this ticker "
+        f"is a Yahoo-style symbol, add a case for it to _is_yahoo_ticker()."
+    )
+    return BinanceFuturesProvider()
