@@ -239,7 +239,7 @@ class BinanceFuturesProvider(MarketDataProvider):
                 f"BinanceProvider: unexpected ticker response for {symbol}: {data}"
             )
 
-    return float(data["price"])
+        return float(data["price"])
 
 class BingXFuturesProvider(MarketDataProvider):
     """NOT YET IMPLEMENTED. Reserves the interface for future BingX
