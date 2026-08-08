@@ -222,6 +222,7 @@ class BinanceFuturesProvider(MarketDataProvider):
 
     def get_current_price(self, symbol: str) -> float:
         import requests
+        symbol = symbol.replace("/", "")
 
         try:
             resp = requests.get(f"{self.BASE_URL}/fapi/v1/ticker/price",
