@@ -436,7 +436,9 @@ def process_symbol(label, cfg, state):
     # Phase 1: record this as a virtual trade regardless of Telegram outcome below -
     # paper trade history must never depend on notification delivery succeeding.
     trade_id = record_trade(ticker, label, latest)
-    if send_telegram(
+    trade_id = record_trade(ticker, label, latest)
+
+if send_telegram(
     f"📈 Paper Trade Opened — {label}\n"
     f"Trade ID: {trade_id}\n"
     f"Direction: {latest['type']}\n"
@@ -446,10 +448,9 @@ def process_symbol(label, cfg, state):
 ):
     print(f"{trade_id}: open notification sent.")
 
-    star = "⭐⭐ HIGH CONFIDENCE\n" if latest["confidence"] == "HIGH" else "Lower Confidence\n"
-    htf_mark = "✅" if latest["htf_ok"] else "❌"
-    sess_mark = "✅" if latest["session_ok"] else "❌"
-
+star = "⭐⭐ HIGH CONFIDENCE\n" if latest["confidence"] == "HIGH" else "Lower Confidence\n"
+htf_mark = "✅" if latest["htf_ok"] else "❌"
+sess_mark = "✅" if latest["session_ok"] else "❌"
     msg = (
         f"{latest['type']} signal — {label}\n"
         f"Trade ID: {trade_id}\n"
