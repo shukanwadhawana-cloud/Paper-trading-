@@ -362,10 +362,6 @@ def run_monitor():
                     # first genuine trailing level still correctly fires
                     # its own notification later.
                     # Notify once when paper trade becomes active
-                    if send_telegram(
-                        f"ð Paper Trade Opened â {row['asset']}\nTrade ID: {trade_id}\nDirection: {row['direction']}\nEntry: {float(row['entry']):.5f}\nSL: {float(row['sl']):.5f}\nTP: {float(row.get('tp',0)):.5f}"
-                    ):
-                        print(f"{trade_id}: open notification sent.")
                     update_trailing_notification(trade_id, -1.0)
 
                 result = resolve_open_trade(row, provider)
