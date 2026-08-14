@@ -221,6 +221,15 @@ def resolve_position_over_bars(
         # Conservative ordering: this bar's breach of the CURRENT
         # (pre-bar) floor is checked before this bar's favorable
         # excursion is allowed to raise the floor further.
+        # Check take-profit before trailing/SL logic.
+        if tp is not None:
+            if position.direction == "BUY" and bar_high >= tp:
+                position.close(EXIT_TAKE_PROFIT, tp)
+                return position, i
+            if position.direction == "SELL" and bar_low <= tp:
+                position.close(EXIT_TAKE_PROFIT, tp)
+                return position, i
+                
         if position.check_floor_breach(bar_high, bar_low):
             reason = EXIT_SL if position.locked_level_r == 0.0 else EXIT_TRAILING_STOP
             position.close(reason, position.floor_price)
