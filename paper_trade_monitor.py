@@ -86,8 +86,13 @@ def resolve_open_trade(trade_row: dict, provider) -> dict:
         return {"status": "STILL_OPEN", "locked_level_r": 0.0, "reason": "no bar data returned this run"}
 
     position, exit_index = resolve_position_over_bars(
-        direction=direction, entry=entry, sl=sl, confidence=confidence,
-        df=df, entry_index=-1, opposite_index=None,
+        direction=direction, 
+        entry=entry, 
+        sl=sl, 
+        confidence=confidence,
+        df=df, 
+        entry_index=-1, 
+        opposite_index=None,
     )
 
     if position is None:
