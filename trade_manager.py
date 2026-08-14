@@ -188,6 +188,7 @@ def resolve_position_over_bars(
     opposite_index: Optional[int] = None,
     symbol: Optional[str] = None,
     quote_currency: Optional[str] = None,
+    tp: Optional[float] = None,
 ) -> Tuple[Optional[Position], Optional[int]]:
     """
     Walks `df` (a DataFrame with High/Low/Close columns) forward from
