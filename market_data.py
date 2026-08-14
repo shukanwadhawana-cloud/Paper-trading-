@@ -237,7 +237,7 @@ class BinanceFuturesProvider(MarketDataProvider):
         if "price" not in data:
             raise ValueError(
                 f"BinanceProvider: unexpected ticker response for {symbol}: {data}"
-        )
+            )
 
         return float(data["price"])
 class BingXFuturesProvider(MarketDataProvider):
