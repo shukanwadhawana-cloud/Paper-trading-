@@ -220,26 +220,26 @@ class BinanceFuturesProvider(MarketDataProvider):
 
         return _parse_klines(all_rows)
 
-def get_current_price(self, symbol: str) -> float:
-    import requests
+    def get_current_price(self, symbol: str) -> float:
+        import requests
 
-    symbol = symbol.replace("/", "")
+        symbol = symbol.replace("/", "")
 
-    resp = requests.get(
-        f"{self.BASE_URL}/fapi/v1/ticker/price",
-        params={"symbol": symbol},
-        timeout=10,
-    )
-    resp.raise_for_status()
+        resp = requests.get(
+            f"{self.BASE_URL}/fapi/v1/ticker/price",
+            params={"symbol": symbol},
+            timeout=10,
+        )
+        resp.raise_for_status()
 
-    data = resp.json()
+        data = resp.json()
 
-    if "price" not in data:
-        raise ValueError(
-            f"BinanceProvider: unexpected ticker response for {symbol}: {data}"
+        if "price" not in data:
+            raise ValueError(
+                f"BinanceProvider: unexpected ticker response for {symbol}: {data}"
         )
 
-    return float(data["price"])
+        return float(data["price"])
 class BingXFuturesProvider(MarketDataProvider):
     """NOT YET IMPLEMENTED. Reserves the interface for future BingX
     Futures API integration. No exchange connection exists. NEVER
