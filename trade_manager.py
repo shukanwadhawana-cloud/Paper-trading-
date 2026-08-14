@@ -183,7 +183,6 @@ def resolve_position_over_bars(
     entry: float,
     sl: float,
     confidence: str,
-    tp: Optional[float] = None,
     df,
     entry_index: int,
     opposite_index: Optional[int] = None,
