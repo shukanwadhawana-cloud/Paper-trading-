@@ -21,6 +21,14 @@ ENTRY_VALIDITY_R = 0.20
 ENTRY_VALIDITY_SENTINEL = -1.0
 
 
+def _utc_timestamp(value) -> pd.Timestamp:
+    """Normalize any stored trade timestamp to one UTC-aware timestamp."""
+    ts = pd.Timestamp(value)
+    if ts.tzinfo is None:
+        return ts.tz_localize("UTC")
+    return ts.tz_convert("UTC")
+
+
 def _canonical_ticker(ticker: str) -> str:
     """Normalize ticker aliases before market-data calls."""
     normalized = str(ticker).strip().upper().replace("/", "").replace("-", "").replace("_", "")
@@ -42,11 +50,16 @@ def resolve_open_trade(trade_row: dict, provider) -> dict:
     tp_raw = trade_row.get("tp")
     tp = float(tp_raw) if tp_raw not in (None, "") else None
     confidence = trade_row["confidence"]
-    entry_time = pd.Timestamp(trade_row["entry_time_utc"])
+    entry_time = _utc_timestamp(trade_row["entry_time_utc"])
 
     df = provider.get_bars(ticker, interval=MONITOR_INTERVAL, start=entry_time)
     if df is None or df.empty:
         return {"status": "STILL_OPEN", "locked_level_r": 0.0, "reason": "no bar data returned this run"}
+
+    # Keep provider output safe even if a future provider returns a naive index.
+    if isinstance(df.index, pd.DatetimeIndex):
+        df = df.copy()
+        df.index = pd.to_datetime(df.index, utc=True)
 
     position, exit_index = resolve_position_over_bars(
         direction=direction,
@@ -64,7 +77,7 @@ def resolve_open_trade(trade_row: dict, provider) -> dict:
     if position.exit_reason == EXIT_STILL_OPEN:
         return {"status": "STILL_OPEN", "locked_level_r": position.locked_level_r}
 
-    exit_time = df.index[exit_index]
+    exit_time = _utc_timestamp(df.index[exit_index])
     return {
         "status": "CLOSED",
         "position": position,
@@ -141,7 +154,6 @@ def _close_and_notify(trade_row: dict, result: dict, execution_layer):
     realized_r = position.r_multiple()
     realized_pnl = position.exit_price - position.entry if position.direction == "BUY" else position.entry - position.exit_price
 
-    # If the closing bar had already locked a trailing level, notify that level first.
     _maybe_notify_trailing_level(trade_row, position.locked_level_r)
 
     closed = execution_layer.close_trade(
@@ -253,7 +265,7 @@ def manual_close_trade(trade_id: str, exit_price: float, trade_row: dict, execut
         confidence=trade_row["confidence"],
     )
     position.manual_close(exit_price)
-    entry_time = pd.Timestamp(trade_row["entry_time_utc"])
+    entry_time = _utc_timestamp(trade_row["entry_time_utc"])
     result = {
         "status": "CLOSED",
         "position": position,
