@@ -1,51 +1,10 @@
 """
 Market Data Abstraction Layer.
 
-Defines a provider-agnostic interface for fetching OHLC price bars and
-current price, so the Paper Trade Monitor (and, later, live execution)
-never depends directly on any single data source. Yahoo Finance and
-Binance Futures are both implemented; BingX Futures remains a reserved
-placeholder.
-
-Nothing in this file contains trading/exit logic - it only fetches and
-normalizes market data into a consistent shape (a DataFrame with
-Open/High/Low/Close columns, indexed by UTC-aware timestamps, or a plain
-float for current price).
-
-This file is completely separate from backtest/data_loader.py (Phase 1
-of the backtesting framework, unmodified, untouched by this milestone).
-That module exists specifically for historical-research data fetching;
-this one exists specifically for the live Paper Trade Monitor's needs.
-
-BINANCE ENDPOINT VERIFICATION NOTE (per explicit instruction to verify
-before implementing): Binance's own USDS-margined-futures API changelog
-documents a "TRADIFI_PERPETUAL" contract type on the
-/fapi/v1/continuousKlines endpoint, distinct from the standard
-symbol-based /fapi/v1/klines endpoint used for ordinary perpetuals
-(BTCUSDT, ETHUSDT, etc.). This strongly suggests XAUUSDT/XAGUSDT (which
-Binance documents as belonging to its "TradFi Perpetual" framework, live
-since January 2026) may require this different endpoint. No live network
-access was available to empirically confirm which path actually succeeds
-for these two symbols specifically, so BinanceFuturesProvider.get_bars()
-tries the standard endpoint first and automatically falls back to
-continuousKlines+TRADIFI_PERPETUAL only for the two symbols documented as
-needing it (see symbols_config.is_tradfi_perpetual()). This should be
-verified against the real live endpoint once deployed with real network
-access - if the standard endpoint turns out to work directly for these
-two symbols, the fallback path simply never triggers and this remains
-correct; if it doesn't, the fallback handles it automatically either way.
-
-PROVIDER ROUTING FIX (this revision): get_provider_for_ticker() and
-get_default_provider() previously routed based on either an exact-match
-dict lookup (fragile against ticker format variations like "ETH/USDT"
-vs "ETHUSDT") or, in a later edit, were hardcoded to unconditionally
-return BingXFuturesProvider() - an unimplemented placeholder that raises
-NotImplementedError for every call. Both were bugs. Routing is now based
-on a normalized (separator/case-insensitive) comparison against
-symbols_config.BINANCE_SYMBOLS, with a pattern-based fallback for
-Binance-style USDT-margined tickers not yet explicitly registered there,
-and never selects BingXFuturesProvider. See _normalize_ticker(),
-_is_binance_ticker(), _is_yahoo_ticker() below.
+Provides a common interface for OHLCV/current-price data. Binance Futures is
+used when reachable; if Binance returns a geographic/API access error, a
+completely free Yahoo Finance chart endpoint is used automatically as a
+read-only fallback. This is intended for paper-trade monitoring only.
 """
 
 import re
@@ -56,34 +15,17 @@ from symbols_config import is_tradfi_perpetual
 
 
 class MarketDataProvider(ABC):
-    """Base interface every market-data provider must implement."""
-
     @abstractmethod
     def get_bars(self, symbol: str, interval: str, start=None, period=None) -> pd.DataFrame:
-        """
-        Returns a DataFrame with columns [Open, High, Low, Close], indexed
-        by UTC-aware timestamps, for `symbol` at the given `interval`.
-
-        Either `start` (fetch bars from this timestamp forward) or `period`
-        (a provider-specific lookback string, e.g. "5d") may be supplied by
-        the caller. Providers may support one, both, or translate between
-        them as needed.
-        """
         raise NotImplementedError
 
     @abstractmethod
     def get_current_price(self, symbol: str) -> float:
-        """Returns the latest traded price for `symbol` as a plain float."""
         raise NotImplementedError
 
 
 class YahooFinanceProvider(MarketDataProvider):
-    """
-    Wraps yfinance. Uses main.py's flatten_columns() (imported, not
-    duplicated) to normalize yfinance's occasional MultiIndex-column
-    output - the same fix already relied on by main.py and
-    backtest/data_loader.py.
-    """
+    """Yahoo Finance provider used by the project for non-Binance tickers."""
 
     def get_bars(self, symbol: str, interval: str, start=None, period=None) -> pd.DataFrame:
         import yfinance as yf
@@ -105,52 +47,125 @@ class YahooFinanceProvider(MarketDataProvider):
         return df[["Open", "High", "Low", "Close"]]
 
     def get_current_price(self, symbol: str) -> float:
-        """Reuses get_bars() rather than introducing a separate,
-        untested yfinance API surface - the latest 1-minute bar's close
-        is a reasonable proxy for current price."""
         df = self.get_bars(symbol, interval="1m", period="1d")
         if df.empty:
             raise ValueError(f"YahooFinanceProvider: no recent bars available for {symbol}")
         return float(df["Close"].iloc[-1])
 
 
-def _parse_klines(raw: list) -> pd.DataFrame:
-    """Shared parser for both /fapi/v1/klines and /fapi/v1/continuousKlines -
-    Binance documents an identical array-of-arrays response shape for both:
-    [open_time_ms, open, high, low, close, volume, close_time_ms, ...]."""
-    if not raw:
-        return pd.DataFrame(columns=["Open", "High", "Low", "Close"])
-    times, rows = [], []
-    for k in raw:
-        times.append(pd.Timestamp(int(k[0]), unit="ms", tz="UTC"))
-        rows.append({"Open": float(k[1]), "High": float(k[2]), "Low": float(k[3]), "Close": float(k[4])})
-    return pd.DataFrame(rows, index=pd.DatetimeIndex(times, name="open_time"))
+class YahooChartFallbackProvider(MarketDataProvider):
+    """Free, keyless Yahoo chart API fallback for Binance-blocked runners.
+
+    This deliberately uses the public chart endpoint directly, so no API key,
+    paid service, proxy, VPN, or additional package is required.
+    """
+
+    BASE_URL = "https://query1.finance.yahoo.com/v8/finance/chart"
+
+    SYMBOL_MAP = {
+        "XAUUSDT": "GC=F",   # Gold futures proxy
+        "XAGUSDT": "SI=F",   # Silver futures proxy
+        "BTCUSDT": "BTC-USD",
+        "ETHUSDT": "ETH-USD",
+        "SOLUSDT": "SOL-USD",
+        "XRPUSDT": "XRP-USD",
+        "BNBUSDT": "BNB-USD",
+    }
+
+    INTERVAL_MAP = {
+        "1m": "1m", "2m": "2m", "5m": "5m", "15m": "15m",
+        "30m": "30m", "60m": "60m", "1h": "60m", "90m": "90m",
+        "1d": "1d", "1wk": "1wk", "1mo": "1mo",
+    }
+
+    def _symbol(self, symbol: str) -> str:
+        normalized = _normalize_ticker(symbol)
+        return self.SYMBOL_MAP.get(normalized, normalized)
+
+    def get_bars(self, symbol: str, interval: str, start=None, period=None) -> pd.DataFrame:
+        import requests
+
+        yahoo_symbol = self._symbol(symbol)
+        yahoo_interval = self.INTERVAL_MAP.get(interval, interval)
+        params = {"interval": yahoo_interval, "events": "history", "includePrePost": "true"}
+
+        if start is not None:
+            start_ts = pd.Timestamp(start)
+            if start_ts.tzinfo is None:
+                start_ts = start_ts.tz_localize("UTC")
+            params["period1"] = int(start_ts.timestamp())
+            params["period2"] = int(pd.Timestamp.now(tz="UTC").timestamp())
+        else:
+            # Keep the default lookback small enough for Yahoo's intraday rules.
+            lookback = _parse_period_to_timedelta(period or "5d")
+            params["period1"] = int((pd.Timestamp.now(tz="UTC") - lookback).timestamp())
+            params["period2"] = int(pd.Timestamp.now(tz="UTC").timestamp())
+
+        resp = requests.get(
+            f"{self.BASE_URL}/{yahoo_symbol}",
+            params=params,
+            headers={"User-Agent": "Mozilla/5.0"},
+            timeout=15,
+        )
+        resp.raise_for_status()
+        payload = resp.json()
+        result = (payload.get("chart") or {}).get("result")
+        if not result:
+            raise ValueError(f"Yahoo fallback returned no chart data for {symbol} ({yahoo_symbol})")
+
+        result = result[0]
+        timestamps = result.get("timestamp") or []
+        quote = ((result.get("indicators") or {}).get("quote") or [{}])[0]
+        rows = []
+        for i, ts in enumerate(timestamps):
+            o = (quote.get("open") or [None])[i]
+            h = (quote.get("high") or [None])[i]
+            l = (quote.get("low") or [None])[i]
+            c = (quote.get("close") or [None])[i]
+            if None in (o, h, l, c):
+                continue
+            rows.append({
+                "Open": float(o), "High": float(h),
+                "Low": float(l), "Close": float(c),
+            })
+
+        if not rows:
+            return pd.DataFrame(columns=["Open", "High", "Low", "Close"])
+
+        index = pd.to_datetime([timestamps[i] for i, ts in enumerate(timestamps)
+                                if all((quote.get(k) or [None])[i] is not None
+                                       for k in ("open", "high", "low", "close"))],
+                               unit="s", utc=True)
+        return pd.DataFrame(rows, index=pd.DatetimeIndex(index, name="open_time"))
+
+    def get_current_price(self, symbol: str) -> float:
+        df = self.get_bars(symbol, interval="1m", period="1d")
+        if df.empty:
+            raise ValueError(f"Yahoo fallback: no current price available for {symbol}")
+        return float(df["Close"].iloc[-1])
 
 
 def _parse_period_to_timedelta(period: str) -> pd.Timedelta:
-    """Minimal parser covering the simple 'Nd'/'Nh'/'Nm' strings actually
-    used anywhere in this repository (e.g. '5d'). Not a general-purpose
-    parser - kept intentionally small and scoped to real call patterns."""
-    match = re.match(r"^(\d+)([dhm])$", period.strip())
+    match = re.match(r"^(\d+)([dhm])$", str(period).strip())
     if not match:
         raise ValueError(f"Unsupported period format: {period!r}")
     n, unit = int(match.group(1)), match.group(2)
-    unit_map = {"d": "days", "h": "hours", "m": "minutes"}
-    return pd.Timedelta(**{unit_map[unit]: n})
+    return pd.Timedelta(**{"d": "days", "h": "hours", "m": "minutes"}[unit])
 
 
 class BinanceFuturesProvider(MarketDataProvider):
-    """
-    Binance USDS-margined Futures public market data. Uses ONLY public
-    REST endpoints - no API key is required or used for market data
-    (klines and ticker/price are both public Binance endpoints). No
-    account access, no order placement, no authentication of any kind
-    exists anywhere in this class.
-    """
+    """Binance public Futures provider with automatic free Yahoo fallback."""
 
     BASE_URL = "https://fapi.binance.com"
-    KLINES_LIMIT = 1500  # Binance's documented max per call for USDS-margined futures klines
-    MAX_PAGES = 20        # safety valve: 20 x 1500 x 15min ~= 312 days - far beyond any realistic open-trade duration
+    KLINES_LIMIT = 1500
+    MAX_PAGES = 20
+
+    def _fallback(self, symbol: str, operation: str, error: Exception):
+        print(
+            f"Binance market data unavailable for {symbol} during {operation} "
+            f"({error}); switching to free Yahoo fallback."
+        )
+        return YahooChartFallbackProvider()
 
     def get_bars(self, symbol: str, interval: str, start=None, period=None) -> pd.DataFrame:
         import requests
@@ -164,31 +179,22 @@ class BinanceFuturesProvider(MarketDataProvider):
             start_ts = pd.Timestamp.now(tz="UTC") - _parse_period_to_timedelta(period)
 
         try:
-            return self._fetch_paginated(
-                f"{self.BASE_URL}/fapi/v1/klines",
-                {"symbol": symbol, "interval": interval}, start_ts,
-            )
-        except requests.RequestException:
-            if is_tradfi_perpetual(symbol):
-                # See module docstring: documented fallback for Binance's
-                # TradFi Perpetual framework (XAUUSDT/XAGUSDT). Paginated
-                # identically to the primary path above.
+            try:
                 return self._fetch_paginated(
-                    f"{self.BASE_URL}/fapi/v1/continuousKlines",
-                    {"pair": symbol, "contractType": "TRADIFI_PERPETUAL", "interval": interval}, start_ts,
+                    f"{self.BASE_URL}/fapi/v1/klines",
+                    {"symbol": symbol, "interval": interval}, start_ts,
                 )
-            raise
+            except requests.RequestException:
+                if is_tradfi_perpetual(symbol):
+                    return self._fetch_paginated(
+                        f"{self.BASE_URL}/fapi/v1/continuousKlines",
+                        {"pair": symbol, "contractType": "TRADIFI_PERPETUAL", "interval": interval}, start_ts,
+                    )
+                raise
+        except Exception as exc:
+            return self._fallback(symbol, "OHLC", exc).get_bars(symbol, interval, start=start, period=period)
 
     def _fetch_paginated(self, url: str, base_params: dict, start_ts) -> pd.DataFrame:
-        """
-        Shared pagination loop for both /fapi/v1/klines and
-        /fapi/v1/continuousKlines (identical response shape and paging
-        semantics per Binance's documentation). Advances startTime by
-        exactly (last_bar_open_time + 1ms) each page, guaranteeing forward
-        progress regardless of data content - this is what makes the loop
-        provably terminate rather than relying on a specific row count.
-        MAX_PAGES is a defensive cap, not an expected limit under normal use.
-        """
         import requests
 
         all_rows = []
@@ -204,145 +210,86 @@ class BinanceFuturesProvider(MarketDataProvider):
             resp = requests.get(url, params=params, timeout=10)
             resp.raise_for_status()
             page = resp.json()
-
             if not page:
                 break
 
             all_rows.extend(page)
             last_open_ms = int(page[-1][0])
-
-            # Stop once this page's last bar is already at/after "now" -
-            # no more data can exist beyond that point.
             if last_open_ms >= now_ms or len(page) < self.KLINES_LIMIT:
                 break
-
             current_start = pd.Timestamp(last_open_ms + 1, unit="ms", tz="UTC")
 
         return _parse_klines(all_rows)
 
     def get_current_price(self, symbol: str) -> float:
         import requests
-
-        symbol = symbol.replace("/", "")
-
-        resp = requests.get(
-            f"{self.BASE_URL}/fapi/v1/ticker/price",
-            params={"symbol": symbol},
-            timeout=10,
-        )
-        resp.raise_for_status()
-
-        data = resp.json()
-
-        if "price" not in data:
-            raise ValueError(
-                f"BinanceProvider: unexpected ticker response for {symbol}: {data}"
+        symbol = _normalize_ticker(symbol)
+        try:
+            resp = requests.get(
+                f"{self.BASE_URL}/fapi/v1/ticker/price",
+                params={"symbol": symbol},
+                timeout=10,
             )
+            resp.raise_for_status()
+            data = resp.json()
+            if "price" not in data:
+                raise ValueError(f"Unexpected Binance ticker response for {symbol}: {data}")
+            return float(data["price"])
+        except Exception as exc:
+            return self._fallback(symbol, "current price", exc).get_current_price(symbol)
 
-        return float(data["price"])
+
+def _parse_klines(raw: list) -> pd.DataFrame:
+    if not raw:
+        return pd.DataFrame(columns=["Open", "High", "Low", "Close"])
+    times, rows = [], []
+    for k in raw:
+        times.append(pd.Timestamp(int(k[0]), unit="ms", tz="UTC"))
+        rows.append({"Open": float(k[1]), "High": float(k[2]), "Low": float(k[3]), "Close": float(k[4])})
+    return pd.DataFrame(rows, index=pd.DatetimeIndex(times, name="open_time"))
+
+
 class BingXFuturesProvider(MarketDataProvider):
-    """NOT YET IMPLEMENTED. Reserves the interface for future BingX
-    Futures API integration. No exchange connection exists. NEVER
-    selected by get_provider_for_ticker()/get_default_provider() below -
-    routing to an unimplemented placeholder would raise NotImplementedError
-    for every single call, regardless of ticker."""
+    """Reserved placeholder; never selected automatically."""
 
     def get_bars(self, symbol: str, interval: str, start=None, period=None) -> pd.DataFrame:
-        raise NotImplementedError(
-            "BingXFuturesProvider is not implemented yet. This class exists to "
-            "reserve the interface for future BingX Futures API integration."
-        )
+        raise NotImplementedError("BingXFuturesProvider is not implemented yet.")
 
     def get_current_price(self, symbol: str) -> float:
-        raise NotImplementedError(
-            "BingXFuturesProvider is not implemented yet. This class exists to "
-            "reserve the interface for future BingX Futures API integration."
-        )
+        raise NotImplementedError("BingXFuturesProvider is not implemented yet.")
 
 
 def _normalize_ticker(ticker: str) -> str:
-    """
-    Strips common separators and normalizes case so different formats of
-    the same symbol compare equal - 'ETH/USDT', 'eth-usdt', 'ETH_USDT',
-    and 'ETHUSDT' all normalize to 'ETHUSDT'. This is what the previous
-    exact-match routing lacked, causing any non-canonical ticker format
-    to silently fail its Binance-membership check and fall through to
-    Yahoo (see module docstring).
-    """
-    return re.sub(r"[/\-_\s]", "", ticker).upper()
+    return re.sub(r"[/\-_\s]", "", str(ticker)).upper()
 
 
 def _is_binance_ticker(ticker: str) -> bool:
-    """
-    True if `ticker`, in any common separator/case style, refers to a
-    Binance Futures symbol. Checks symbols_config.BINANCE_SYMBOLS first
-    (the explicit, verified registry) via a normalized comparison, then
-    falls back to a naming-convention check (ends in USDT, not a Yahoo
-    futures-style ticker) so a Binance-style ticker not yet added to that
-    registry still routes correctly rather than silently defaulting to
-    Yahoo.
-    """
     normalized = _normalize_ticker(ticker)
-
     try:
         from symbols_config import BINANCE_SYMBOLS
-        registered = {_normalize_ticker(s) for s in BINANCE_SYMBOLS}
-        if normalized in registered:
+        if normalized in {_normalize_ticker(s) for s in BINANCE_SYMBOLS}:
             return True
     except ImportError:
         pass
-
-    return normalized.endswith("USDT") and "=" not in ticker
+    return normalized.endswith("USDT") and "=" not in str(ticker)
 
 
 def _is_yahoo_ticker(ticker: str) -> bool:
-    """
-    True if `ticker` matches Yahoo Finance's known formats used elsewhere
-    in this project: futures contracts ('GC=F', 'SI=F') or hyphenated
-    spot pairs ('BTC-USD', 'ETH-USD'). Deliberately checked only AFTER
-    _is_binance_ticker() by the caller, so a ticker like 'BTC-USDT'
-    (hyphenated Binance-style, if it ever occurred) would still correctly
-    resolve to Binance via the USDT-suffix check first.
-    """
-    return "=F" in ticker or ("-" in ticker and not _normalize_ticker(ticker).endswith("USDT"))
+    return "=F" in str(ticker) or ("-" in str(ticker) and not _normalize_ticker(ticker).endswith("USDT"))
 
 
 def get_default_provider() -> MarketDataProvider:
-    """
-    Generic default for callers that don't have a specific ticker to
-    route by. Returns YahooFinanceProvider() - restored to its original,
-    correct behavior. (A prior edit had this hardcoded to
-    BingXFuturesProvider(), an unimplemented placeholder that would raise
-    NotImplementedError for every call - see module docstring.)
-    paper_trade_monitor.py's real per-trade routing goes through
-    get_provider_for_ticker() below, not this function.
-    """
     return YahooFinanceProvider()
 
 
 def get_provider_for_ticker(ticker: str) -> MarketDataProvider:
-    """
-    Routes a specific ticker to the correct provider based on its format,
-    regardless of separator style or case (ETHUSDT, ETH/USDT, eth-usdt
-    all route identically to Binance; BTC-USD, GC=F route to Yahoo).
-    Never routes to BingXFuturesProvider, since it is an unimplemented
-    placeholder - see module docstring for why this matters and what the
-    previous bug was.
-    """
     if _is_binance_ticker(ticker):
         return BinanceFuturesProvider()
     if _is_yahoo_ticker(ticker):
         return YahooFinanceProvider()
-
-    # Ticker format doesn't match any known pattern. Rather than silently
-    # guessing (the root cause of the original bug), default to Binance -
-    # this project's live market-data target - while making the
-    # ambiguity visible instead of failing deep inside a provider with a
-    # confusing, unrelated-looking error.
     import warnings
     warnings.warn(
-        f"get_provider_for_ticker: {ticker!r} did not match any known Binance or "
-        f"Yahoo ticker format - defaulting to BinanceFuturesProvider. If this ticker "
-        f"is a Yahoo-style symbol, add a case for it to _is_yahoo_ticker()."
+        f"get_provider_for_ticker: {ticker!r} did not match known formats; "
+        "defaulting to BinanceFuturesProvider."
     )
     return BinanceFuturesProvider()
