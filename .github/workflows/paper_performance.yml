@@ -3,7 +3,8 @@ name: Paper Trading Performance Report
 on:
   workflow_dispatch:
   schedule:
-    - cron: '55 23 * * *'
+    # Around 23:55 IST (18:25 UTC) every day.
+    - cron: '25 18 * * *'
 
 permissions:
   contents: write
