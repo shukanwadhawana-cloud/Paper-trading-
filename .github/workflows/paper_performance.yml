@@ -28,6 +28,16 @@ jobs:
           PERFORMANCE_START_DATE: '2026-07-25'
         run: python performance_report.py
 
+      - name: Upload downloadable report artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: paper-trading-performance-${{ github.run_number }}
+          path: |
+            paper_performance_report.md
+            paper_daily_performance.csv
+          if-no-files-found: error
+          retention-days: 35
+
       - name: Commit daily performance report
         run: |
           git config user.name 'github-actions[bot]'
