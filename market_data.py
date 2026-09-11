@@ -30,7 +30,6 @@ class YahooFinanceProvider(MarketDataProvider):
     def get_bars(self, symbol: str, interval: str, start=None, period=None) -> pd.DataFrame:
         import yfinance as yf
         from main import flatten_columns
-
         kwargs = {"interval": interval, "progress": False}
         if start is not None:
             kwargs["start"] = start
@@ -38,11 +37,9 @@ class YahooFinanceProvider(MarketDataProvider):
             kwargs["period"] = period
         elif start is None:
             kwargs["period"] = "5d"
-
         df = yf.download(symbol, **kwargs)
         if df is None or df.empty:
             return pd.DataFrame(columns=["Open", "High", "Low", "Close"])
-
         df = flatten_columns(df)
         return df[["Open", "High", "Low", "Close"]]
 
@@ -54,24 +51,18 @@ class YahooFinanceProvider(MarketDataProvider):
 
 
 class YahooChartFallbackProvider(MarketDataProvider):
-    """Free, keyless Yahoo chart API fallback for Binance-blocked runners.
-
-    This deliberately uses the public chart endpoint directly, so no API key,
-    paid service, proxy, VPN, or additional package is required.
-    """
+    """Free, keyless Yahoo chart API fallback for Binance-blocked runners."""
 
     BASE_URL = "https://query1.finance.yahoo.com/v8/finance/chart"
-
     SYMBOL_MAP = {
-        "XAUUSDT": "GC=F",   # Gold futures proxy
-        "XAGUSDT": "SI=F",   # Silver futures proxy
+        "XAUUSDT": "GC=F",
+        "XAGUSDT": "SI=F",
         "BTCUSDT": "BTC-USD",
         "ETHUSDT": "ETH-USD",
         "SOLUSDT": "SOL-USD",
         "XRPUSDT": "XRP-USD",
         "BNBUSDT": "BNB-USD",
     }
-
     INTERVAL_MAP = {
         "1m": "1m", "2m": "2m", "5m": "5m", "15m": "15m",
         "30m": "30m", "60m": "60m", "1h": "60m", "90m": "90m",
@@ -84,11 +75,9 @@ class YahooChartFallbackProvider(MarketDataProvider):
 
     def get_bars(self, symbol: str, interval: str, start=None, period=None) -> pd.DataFrame:
         import requests
-
         yahoo_symbol = self._symbol(symbol)
         yahoo_interval = self.INTERVAL_MAP.get(interval, interval)
         params = {"interval": yahoo_interval, "events": "history", "includePrePost": "true"}
-
         if start is not None:
             start_ts = pd.Timestamp(start)
             if start_ts.tzinfo is None:
@@ -96,7 +85,6 @@ class YahooChartFallbackProvider(MarketDataProvider):
             params["period1"] = int(start_ts.timestamp())
             params["period2"] = int(pd.Timestamp.now(tz="UTC").timestamp())
         else:
-            # Keep the default lookback small enough for Yahoo's intraday rules.
             lookback = _parse_period_to_timedelta(period or "5d")
             params["period1"] = int((pd.Timestamp.now(tz="UTC") - lookback).timestamp())
             params["period2"] = int(pd.Timestamp.now(tz="UTC").timestamp())
@@ -116,26 +104,23 @@ class YahooChartFallbackProvider(MarketDataProvider):
         result = result[0]
         timestamps = result.get("timestamp") or []
         quote = ((result.get("indicators") or {}).get("quote") or [{}])[0]
+        valid = []
         rows = []
         for i, ts in enumerate(timestamps):
-            o = (quote.get("open") or [None])[i]
-            h = (quote.get("high") or [None])[i]
-            l = (quote.get("low") or [None])[i]
-            c = (quote.get("close") or [None])[i]
-            if None in (o, h, l, c):
+            values = [
+                (quote.get("open") or [None])[i],
+                (quote.get("high") or [None])[i],
+                (quote.get("low") or [None])[i],
+                (quote.get("close") or [None])[i],
+            ]
+            if any(v is None for v in values):
                 continue
-            rows.append({
-                "Open": float(o), "High": float(h),
-                "Low": float(l), "Close": float(c),
-            })
-
+            valid.append(ts)
+            rows.append({"Open": float(values[0]), "High": float(values[1]),
+                         "Low": float(values[2]), "Close": float(values[3])})
         if not rows:
             return pd.DataFrame(columns=["Open", "High", "Low", "Close"])
-
-        index = pd.to_datetime([timestamps[i] for i, ts in enumerate(timestamps)
-                                if all((quote.get(k) or [None])[i] is not None
-                                       for k in ("open", "high", "low", "close"))],
-                               unit="s", utc=True)
+        index = pd.to_datetime(valid, unit="s", utc=True)
         return pd.DataFrame(rows, index=pd.DatetimeIndex(index, name="open_time"))
 
     def get_current_price(self, symbol: str) -> float:
@@ -169,7 +154,6 @@ class BinanceFuturesProvider(MarketDataProvider):
 
     def get_bars(self, symbol: str, interval: str, start=None, period=None) -> pd.DataFrame:
         import requests
-
         start_ts = None
         if start is not None:
             start_ts = pd.Timestamp(start)
@@ -177,7 +161,6 @@ class BinanceFuturesProvider(MarketDataProvider):
                 start_ts = start_ts.tz_localize("UTC")
         elif period is not None:
             start_ts = pd.Timestamp.now(tz="UTC") - _parse_period_to_timedelta(period)
-
         try:
             try:
                 return self._fetch_paginated(
@@ -196,29 +179,24 @@ class BinanceFuturesProvider(MarketDataProvider):
 
     def _fetch_paginated(self, url: str, base_params: dict, start_ts) -> pd.DataFrame:
         import requests
-
         all_rows = []
         current_start = start_ts
         now_ms = int(pd.Timestamp.now(tz="UTC").timestamp() * 1000)
-
         for _ in range(self.MAX_PAGES):
             params = dict(base_params)
             params["limit"] = self.KLINES_LIMIT
             if current_start is not None:
                 params["startTime"] = int(current_start.timestamp() * 1000)
-
             resp = requests.get(url, params=params, timeout=10)
             resp.raise_for_status()
             page = resp.json()
             if not page:
                 break
-
             all_rows.extend(page)
             last_open_ms = int(page[-1][0])
             if last_open_ms >= now_ms or len(page) < self.KLINES_LIMIT:
                 break
             current_start = pd.Timestamp(last_open_ms + 1, unit="ms", tz="UTC")
-
         return _parse_klines(all_rows)
 
     def get_current_price(self, symbol: str) -> float:
@@ -251,10 +229,8 @@ def _parse_klines(raw: list) -> pd.DataFrame:
 
 class BingXFuturesProvider(MarketDataProvider):
     """Reserved placeholder; never selected automatically."""
-
     def get_bars(self, symbol: str, interval: str, start=None, period=None) -> pd.DataFrame:
         raise NotImplementedError("BingXFuturesProvider is not implemented yet.")
-
     def get_current_price(self, symbol: str) -> float:
         raise NotImplementedError("BingXFuturesProvider is not implemented yet.")
 
@@ -288,8 +264,5 @@ def get_provider_for_ticker(ticker: str) -> MarketDataProvider:
     if _is_yahoo_ticker(ticker):
         return YahooFinanceProvider()
     import warnings
-    warnings.warn(
-        f"get_provider_for_ticker: {ticker!r} did not match known formats; "
-        "defaulting to BinanceFuturesProvider."
-    )
+    warnings.warn(f"get_provider_for_ticker: {ticker!r} did not match known formats; defaulting to BinanceFuturesProvider.")
     return BinanceFuturesProvider()
