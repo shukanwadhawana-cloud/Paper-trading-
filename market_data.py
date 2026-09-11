@@ -1,10 +1,9 @@
 """
 Market Data Abstraction Layer.
 
-Provides a common interface for OHLCV/current-price data. Binance Futures is
-used when reachable; if Binance returns a geographic/API access error, a
-completely free Yahoo Finance chart endpoint is used automatically as a
-read-only fallback. This is intended for paper-trade monitoring only.
+Provides a common interface for OHLC/current-price data. Binance Futures is
+used when reachable; if Binance is blocked, a completely free Yahoo Finance
+chart endpoint is used automatically as a read-only fallback for paper trading.
 """
 
 import re
@@ -24,23 +23,54 @@ class MarketDataProvider(ABC):
         raise NotImplementedError
 
 
+def _utc_timestamp(value) -> pd.Timestamp:
+    """Return a consistently UTC-aware pandas timestamp."""
+    ts = pd.Timestamp(value)
+    if ts.tzinfo is None:
+        return ts.tz_localize("UTC")
+    return ts.tz_convert("UTC")
+
+
+def _normalize_ticker(ticker: str) -> str:
+    return re.sub(r"[/\-_\s]", "", str(ticker)).upper()
+
+
+def _format_yahoo_symbol(symbol: str) -> str:
+    """Convert Binance-style USDT pairs to Yahoo's USD pair format."""
+    normalized = _normalize_ticker(symbol)
+    explicit = {
+        "XAUUSDT": "GC=F",
+        "XAGUSDT": "SI=F",
+        "XAUTUSDT": "GC=F",
+        "XAGTUSDT": "SI=F",
+    }
+    if normalized in explicit:
+        return explicit[normalized]
+    if normalized.endswith("USDT"):
+        return f"{normalized[:-4]}-USD"
+    return str(symbol).strip()
+
+
 class YahooFinanceProvider(MarketDataProvider):
-    """Yahoo Finance provider used by the project for non-Binance tickers."""
+    """Yahoo Finance provider used for non-Binance tickers."""
 
     def get_bars(self, symbol: str, interval: str, start=None, period=None) -> pd.DataFrame:
         import yfinance as yf
         from main import flatten_columns
+
         kwargs = {"interval": interval, "progress": False}
         if start is not None:
-            kwargs["start"] = start
+            kwargs["start"] = _utc_timestamp(start)
         if period is not None:
             kwargs["period"] = period
         elif start is None:
             kwargs["period"] = "5d"
+
         df = yf.download(symbol, **kwargs)
         if df is None or df.empty:
             return pd.DataFrame(columns=["Open", "High", "Low", "Close"])
         df = flatten_columns(df)
+        df.index = pd.to_datetime(df.index, utc=True)
         return df[["Open", "High", "Low", "Close"]]
 
     def get_current_price(self, symbol: str) -> float:
@@ -54,15 +84,6 @@ class YahooChartFallbackProvider(MarketDataProvider):
     """Free, keyless Yahoo chart API fallback for Binance-blocked runners."""
 
     BASE_URL = "https://query1.finance.yahoo.com/v8/finance/chart"
-    SYMBOL_MAP = {
-        "XAUUSDT": "GC=F",
-        "XAGUSDT": "SI=F",
-        "BTCUSDT": "BTC-USD",
-        "ETHUSDT": "ETH-USD",
-        "SOLUSDT": "SOL-USD",
-        "XRPUSDT": "XRP-USD",
-        "BNBUSDT": "BNB-USD",
-    }
     INTERVAL_MAP = {
         "1m": "1m", "2m": "2m", "5m": "5m", "15m": "15m",
         "30m": "30m", "60m": "60m", "1h": "60m", "90m": "90m",
@@ -70,24 +91,24 @@ class YahooChartFallbackProvider(MarketDataProvider):
     }
 
     def _symbol(self, symbol: str) -> str:
-        normalized = _normalize_ticker(symbol)
-        return self.SYMBOL_MAP.get(normalized, normalized)
+        return _format_yahoo_symbol(symbol)
 
     def get_bars(self, symbol: str, interval: str, start=None, period=None) -> pd.DataFrame:
         import requests
+
         yahoo_symbol = self._symbol(symbol)
         yahoo_interval = self.INTERVAL_MAP.get(interval, interval)
+        now = pd.Timestamp.now(tz="UTC")
         params = {"interval": yahoo_interval, "events": "history", "includePrePost": "true"}
+
         if start is not None:
-            start_ts = pd.Timestamp(start)
-            if start_ts.tzinfo is None:
-                start_ts = start_ts.tz_localize("UTC")
+            start_ts = _utc_timestamp(start)
             params["period1"] = int(start_ts.timestamp())
-            params["period2"] = int(pd.Timestamp.now(tz="UTC").timestamp())
+            params["period2"] = int(now.timestamp())
         else:
             lookback = _parse_period_to_timedelta(period or "5d")
-            params["period1"] = int((pd.Timestamp.now(tz="UTC") - lookback).timestamp())
-            params["period2"] = int(pd.Timestamp.now(tz="UTC").timestamp())
+            params["period1"] = int((now - lookback).timestamp())
+            params["period2"] = int(now.timestamp())
 
         resp = requests.get(
             f"{self.BASE_URL}/{yahoo_symbol}",
@@ -104,23 +125,32 @@ class YahooChartFallbackProvider(MarketDataProvider):
         result = result[0]
         timestamps = result.get("timestamp") or []
         quote = ((result.get("indicators") or {}).get("quote") or [{}])[0]
-        valid = []
+        opens = quote.get("open") or []
+        highs = quote.get("high") or []
+        lows = quote.get("low") or []
+        closes = quote.get("close") or []
+
+        valid_timestamps = []
         rows = []
         for i, ts in enumerate(timestamps):
             values = [
-                (quote.get("open") or [None])[i],
-                (quote.get("high") or [None])[i],
-                (quote.get("low") or [None])[i],
-                (quote.get("close") or [None])[i],
+                opens[i] if i < len(opens) else None,
+                highs[i] if i < len(highs) else None,
+                lows[i] if i < len(lows) else None,
+                closes[i] if i < len(closes) else None,
             ]
             if any(v is None for v in values):
                 continue
-            valid.append(ts)
-            rows.append({"Open": float(values[0]), "High": float(values[1]),
-                         "Low": float(values[2]), "Close": float(values[3])})
+            valid_timestamps.append(ts)
+            rows.append({
+                "Open": float(values[0]), "High": float(values[1]),
+                "Low": float(values[2]), "Close": float(values[3]),
+            })
+
         if not rows:
             return pd.DataFrame(columns=["Open", "High", "Low", "Close"])
-        index = pd.to_datetime(valid, unit="s", utc=True)
+
+        index = pd.to_datetime(valid_timestamps, unit="s", utc=True)
         return pd.DataFrame(rows, index=pd.DatetimeIndex(index, name="open_time"))
 
     def get_current_price(self, symbol: str) -> float:
@@ -154,24 +184,20 @@ class BinanceFuturesProvider(MarketDataProvider):
 
     def get_bars(self, symbol: str, interval: str, start=None, period=None) -> pd.DataFrame:
         import requests
-        start_ts = None
-        if start is not None:
-            start_ts = pd.Timestamp(start)
-            if start_ts.tzinfo is None:
-                start_ts = start_ts.tz_localize("UTC")
-        elif period is not None:
+        start_ts = _utc_timestamp(start) if start is not None else None
+        if start is None and period is not None:
             start_ts = pd.Timestamp.now(tz="UTC") - _parse_period_to_timedelta(period)
         try:
             try:
                 return self._fetch_paginated(
                     f"{self.BASE_URL}/fapi/v1/klines",
-                    {"symbol": symbol, "interval": interval}, start_ts,
+                    {"symbol": _normalize_ticker(symbol), "interval": interval}, start_ts,
                 )
             except requests.RequestException:
-                if is_tradfi_perpetual(symbol):
+                if is_tradfi_perpetual(_normalize_ticker(symbol)):
                     return self._fetch_paginated(
                         f"{self.BASE_URL}/fapi/v1/continuousKlines",
-                        {"pair": symbol, "contractType": "TRADIFI_PERPETUAL", "interval": interval}, start_ts,
+                        {"pair": _normalize_ticker(symbol), "contractType": "TRADIFI_PERPETUAL", "interval": interval}, start_ts,
                     )
                 raise
         except Exception as exc:
@@ -201,20 +227,20 @@ class BinanceFuturesProvider(MarketDataProvider):
 
     def get_current_price(self, symbol: str) -> float:
         import requests
-        symbol = _normalize_ticker(symbol)
+        normalized = _normalize_ticker(symbol)
         try:
             resp = requests.get(
                 f"{self.BASE_URL}/fapi/v1/ticker/price",
-                params={"symbol": symbol},
+                params={"symbol": normalized},
                 timeout=10,
             )
             resp.raise_for_status()
             data = resp.json()
             if "price" not in data:
-                raise ValueError(f"Unexpected Binance ticker response for {symbol}: {data}")
+                raise ValueError(f"Unexpected Binance ticker response for {normalized}: {data}")
             return float(data["price"])
         except Exception as exc:
-            return self._fallback(symbol, "current price", exc).get_current_price(symbol)
+            return self._fallback(normalized, "current price", exc).get_current_price(normalized)
 
 
 def _parse_klines(raw: list) -> pd.DataFrame:
@@ -233,10 +259,6 @@ class BingXFuturesProvider(MarketDataProvider):
         raise NotImplementedError("BingXFuturesProvider is not implemented yet.")
     def get_current_price(self, symbol: str) -> float:
         raise NotImplementedError("BingXFuturesProvider is not implemented yet.")
-
-
-def _normalize_ticker(ticker: str) -> str:
-    return re.sub(r"[/\-_\s]", "", str(ticker)).upper()
 
 
 def _is_binance_ticker(ticker: str) -> bool:
