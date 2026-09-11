@@ -1,0 +1,36 @@
+name: Paper Trading Performance Report
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '55 23 * * *'
+
+permissions:
+  contents: write
+
+jobs:
+  performance:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+
+      - name: Generate performance report
+        env:
+          PERFORMANCE_START_DATE: '2026-07-25'
+        run: python performance_report.py
+
+      - name: Commit daily performance report
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add paper_performance_report.md paper_daily_performance.csv
+          git diff --cached --quiet || git commit -m 'Update daily paper trading performance report'
+          git push
