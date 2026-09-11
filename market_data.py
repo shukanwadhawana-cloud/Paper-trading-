@@ -161,11 +161,13 @@ class YahooChartFallbackProvider(MarketDataProvider):
 
 
 def _parse_period_to_timedelta(period: str) -> pd.Timedelta:
+    """Parse compact lookbacks such as 5d, 12h, or 90m safely."""
     match = re.match(r"^(\d+)([dhm])$", str(period).strip())
     if not match:
         raise ValueError(f"Unsupported period format: {period!r}")
     n, unit = int(match.group(1)), match.group(2)
-    return pd.Timedelta(**{"d": "days", "h": "hours", "m": "minutes"}[unit])
+    kwargs = {"d": {"days": n}, "h": {"hours": n}, "m": {"minutes": n}}[unit]
+    return pd.Timedelta(**kwargs)
 
 
 class BinanceFuturesProvider(MarketDataProvider):
