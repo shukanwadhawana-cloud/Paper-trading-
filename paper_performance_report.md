@@ -1,19 +1,19 @@
 # Paper Trading Performance & Strategy Audit
 
 **Analysis start:** 2026-07-25
-**Generated:** 2026-10-09T22:47:06.763073+00:00
+**Generated:** 2026-10-10T21:54:42.551529+00:00
 **Daily P&L date basis:** trade close date in Asia/Kolkata (IST)
 
 ## Overall Performance
-- Executed trades: **635**
-- Skipped signals: **283**
-- Wins / losses / breakeven: **358 / 277 / 0**
-- Win rate: **56.38%**
-- Total realized R: **+56.40R**
-- Total realized P&L (CSV units): **+3473.36955**
-- R profit factor: **1.20**
-- P&L profit factor: **1.15**
-- Average R/trade: **+0.089R**
+- Executed trades: **641**
+- Skipped signals: **284**
+- Wins / losses / breakeven: **358 / 283 / 0**
+- Win rate: **55.85%**
+- Total realized R: **+50.40R**
+- Total realized P&L (CSV units): **+3255.47690**
+- R profit factor: **1.18**
+- P&L profit factor: **1.14**
+- Average R/trade: **+0.079R**
 - Maximum trade-sequence drawdown: **-32.80R**
 
 ## Best / Worst Trades
@@ -26,35 +26,35 @@
 | Asset | Trades | Wins | Losses | Win Rate | Net R | Net P&L | Avg R |
 |---|---|---|---|---|---|---|---|
 | AVAX/USDT | 72 | 41 | 31 | 56.94% | +4.20R | +0.86076 | +0.058R |
-| BNB/USDT | 75 | 42 | 33 | 56.00% | -3.00R | -11.14385 | -0.040R |
-| BTC/USDT | 98 | 62 | 36 | 63.27% | +13.00R | +3136.98466 | +0.133R |
+| BNB/USDT | 77 | 42 | 35 | 54.55% | -5.00R | -24.82824 | -0.065R |
+| BTC/USDT | 99 | 62 | 37 | 62.63% | +12.00R | +2933.10220 | +0.121R |
 | ETH/USDT | 100 | 60 | 40 | 60.00% | +4.40R | -103.10850 | +0.044R |
-| LINK/USDT | 70 | 35 | 35 | 50.00% | -8.00R | -1.05630 | -0.114R |
+| LINK/USDT | 72 | 35 | 37 | 48.61% | -10.00R | -1.35820 | -0.139R |
 | SOL/USDT | 84 | 54 | 30 | 64.29% | +16.80R | +16.89573 | +0.200R |
 | XAUT/USDT | 59 | 19 | 40 | 32.20% | +21.60R | +433.77005 | +0.366R |
-| XRP/USDT | 77 | 45 | 32 | 58.44% | +7.40R | +0.16700 | +0.096R |
+| XRP/USDT | 78 | 45 | 33 | 57.69% | +6.40R | +0.14310 | +0.082R |
 
 ## BUY vs SELL
 | Direction | Trades | Wins | Losses | Win Rate | Net R | Net P&L | Avg R |
 |---|---|---|---|---|---|---|---|
 | BUY | 406 | 248 | 158 | 61.08% | +87.40R | +3890.86653 | +0.215R |
-| SELL | 229 | 110 | 119 | 48.03% | -31.00R | -417.49698 | -0.135R |
+| SELL | 235 | 110 | 125 | 46.81% | -37.00R | -635.38963 | -0.157R |
 
 ## Performance by Exit Reason
 | Exit | Trades | Wins | Losses | Net R | Net P&L | Avg R |
 |---|---|---|---|---|---|---|
-| SL | 277 | 0 | 277 | -277.00R | -23140.73680 | -1.000R |
+| SL | 283 | 0 | 283 | -283.00R | -23358.62945 | -1.000R |
 | TAKE_PROFIT | 13 | 13 | 0 | +52.00R | +4399.99830 | +4.000R |
 | TRAILING_STOP | 345 | 345 | 0 | +281.40R | +22214.10805 | +0.816R |
 
 ## Trailing-System Distribution
 | Trailing Level | Trades | % Executed | Total R | Total P&L |
 |---|---|---|---|---|
-| +0.60R | 264 | 41.57% | +158.40R | +15992.25625 |
-| +1.20R | 58 | 9.13% | +69.60R | +4495.49940 |
-| +1.80R | 12 | 1.89% | +21.60R | +1213.76975 |
+| +0.60R | 264 | 41.19% | +158.40R | +15992.25625 |
+| +1.20R | 58 | 9.05% | +69.60R | +4495.49940 |
+| +1.80R | 12 | 1.87% | +21.60R | +1213.76975 |
 | +2.40R | 3 | 0.47% | +7.20R | +68.33566 |
-| +3.00R | 7 | 1.10% | +21.00R | +361.62699 |
+| +3.00R | 7 | 1.09% | +21.00R | +361.62699 |
 | +3.60R | 1 | 0.16% | +3.60R | +82.62000 |
 
 ## Daily Performance (IST Close Date)
@@ -101,14 +101,14 @@
 | 2026-10-07 | 5 | 4 | 1 | +7.20R | +492.63010 | 1 | +52.60R |
 | 2026-10-08 | 19 | 14 | 5 | +5.20R | +229.19557 | 8 | +57.80R |
 | 2026-10-09 | 1 | 0 | 1 | -1.00R | -0.26806 | 1 | +56.80R |
-| 2026-10-10 | 2 | 1 | 1 | -0.40R | +9.17861 | 1 | +56.40R |
+| 2026-10-10 | 8 | 1 | 7 | -6.40R | -208.71404 | 2 | +50.40R |
 
 ## Strategy Audit Signals
 
 - Strongest asset by R: **XAUT/USDT (+21.60R)**
-- Weakest asset by R: **LINK/USDT (-8.00R)**
+- Weakest asset by R: **LINK/USDT (-10.00R)**
 - Strongest direction by R: **BUY (+87.40R)**
-- Weakest direction by R: **SELL (-31.00R)**
+- Weakest direction by R: **SELL (-37.00R)**
 - No asset or direction is automatically disabled by this report.
 - No trailing level is automatically changed by this report.
 - Use this report as an observation dataset for the one-month audit period before making permanent rule changes.
