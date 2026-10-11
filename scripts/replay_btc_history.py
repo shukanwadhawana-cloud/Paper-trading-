@@ -131,7 +131,11 @@ def main():
         "## Interpretation",
         "- A positive R total is not monetary profit and does not by itself prove strategy edge.",
         "- Any incomplete candle coverage or unverifiable trades makes the result provisional.",
-        "- Inspect the row-level CSV before declaring the historical ledger reconciled."
+        "- Inspect the row-level CSV before declaring the historical ledger reconciled.",
+        "", "## Mismatches",
+        *[f"- {r['trade_id']}: ledger {r['ledger_exit_reason']} / {r['ledger_realized_r']}R vs replay {r['replay_exit_reason']} / {r['replay_realized_r']}R" for r in mismatches],
+        "", "## Unverifiable rows",
+        *[f"- {r['trade_id']}: {r['notes']}" for r in results if r['comparison'] == "UNVERIFIABLE"]
     ]
     with open(os.path.join(args.out_dir, "btc_replay_summary.md"), "w", encoding="utf-8") as fh:
         fh.write("\n".join(report) + "\n")
