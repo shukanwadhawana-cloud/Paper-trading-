@@ -256,11 +256,47 @@ def _parse_klines(raw: list) -> pd.DataFrame:
 
 
 class BingXFuturesProvider(MarketDataProvider):
-    """Reserved placeholder; never selected automatically."""
+    """Read-only BingX swap data, matching main.py's crypto signal feed."""
+    def __init__(self):
+        import ccxt
+        self.exchange = ccxt.bingx({"enableRateLimit": True, "options": {"defaultType": "swap"}})
+
     def get_bars(self, symbol: str, interval: str, start=None, period=None) -> pd.DataFrame:
-        raise NotImplementedError("BingXFuturesProvider is not implemented yet.")
+        start_ts = _utc_timestamp(start) if start is not None else None
+        if start_ts is None:
+            start_ts = pd.Timestamp.now(tz="UTC") - _parse_period_to_timedelta(period or "5d")
+        since_ms = int(start_ts.timestamp() * 1000)
+        now_ms = int(pd.Timestamp.now(tz="UTC").timestamp() * 1000)
+        all_rows = []
+        for _ in range(20):
+            batch = self.exchange.fetch_ohlcv(symbol, timeframe=interval, since=since_ms, limit=500)
+            if not batch:
+                break
+            all_rows.extend(batch)
+            last_ms = int(batch[-1][0])
+            if last_ms < since_ms:
+                break
+            since_ms = last_ms + 1
+            if last_ms >= now_ms or len(batch) < 500:
+                break
+        if not all_rows:
+            return pd.DataFrame(columns=["Open", "High", "Low", "Close"])
+        unique = {int(row[0]): row for row in all_rows}
+        times = sorted(unique)
+        df = pd.DataFrame(
+            [{"Open": float(unique[t][1]), "High": float(unique[t][2]),
+              "Low": float(unique[t][3]), "Close": float(unique[t][4])} for t in times],
+            index=pd.to_datetime(times, unit="ms", utc=True),
+        )
+        df.index.name = "open_time"
+        return df
+
     def get_current_price(self, symbol: str) -> float:
-        raise NotImplementedError("BingXFuturesProvider is not implemented yet.")
+        ticker = self.exchange.fetch_ticker(symbol)
+        price = ticker.get("last") or ticker.get("close")
+        if price is None:
+            raise ValueError(f"BingX returned no last price for {symbol}")
+        return float(price)
 
 
 def _is_binance_ticker(ticker: str) -> bool:
@@ -283,10 +319,12 @@ def get_default_provider() -> MarketDataProvider:
 
 
 def get_provider_for_ticker(ticker: str) -> MarketDataProvider:
+    # Crypto signal generation in main.py uses BingX swaps; use the same venue
+    # for exit replay to avoid silently mixing exchange prices.
     if _is_binance_ticker(ticker):
-        return BinanceFuturesProvider()
+        return BingXFuturesProvider()
     if _is_yahoo_ticker(ticker):
         return YahooFinanceProvider()
     import warnings
-    warnings.warn(f"get_provider_for_ticker: {ticker!r} did not match known formats; defaulting to BinanceFuturesProvider.")
-    return BinanceFuturesProvider()
+    warnings.warn(f"get_provider_for_ticker: {ticker!r} did not match known formats; defaulting to BingXFuturesProvider.")
+    return BingXFuturesProvider()
