@@ -1,6 +1,7 @@
 import pandas as pd
 
 from paper_trade_monitor import resolve_open_trade
+from market_data import BingXFuturesProvider
 
 
 class FakeProvider:
@@ -83,3 +84,8 @@ def test_incomplete_latest_candle_is_not_used():
 
     assert result["status"] == "STILL_OPEN"
     assert result["locked_level_r"] == 0.6
+
+
+def test_bingx_compact_ticker_is_converted_to_ccxt_swap_symbol():
+    assert BingXFuturesProvider._swap_symbol("BTCUSDT") == "BTC/USDT:USDT"
+    assert BingXFuturesProvider._swap_symbol("BTC/USDT") == "BTC/USDT:USDT"
