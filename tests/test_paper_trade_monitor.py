@@ -82,4 +82,4 @@ def test_incomplete_latest_candle_is_not_used():
     result = resolve_open_trade(trade_row(), FakeProvider(frame))
 
     assert result["status"] == "STILL_OPEN"
-    assert result.get("reason") == "no completed post-entry bars available this run"
+    assert result["locked_level_r"] == 0.6
