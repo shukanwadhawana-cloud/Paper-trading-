@@ -1,0 +1,41 @@
+name: Paper Trading PR Validation
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches:
+      - fix/verified-paper-trade-accounting
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Compile Python modules
+        run: |
+          python -m compileall -q main.py market_data.py paper_trade_monitor.py performance_report.py paper_trading.py trade_manager.py execution_layer.py symbols_config.py
+
+      - name: Run tests when present
+        run: |
+          if find . -maxdepth 2 -type f \( -name 'test_*.py' -o -name '*_test.py' \) | grep -q .; then
+            pip install pytest
+            pytest -q
+          else
+            echo "No automated test files found; syntax compilation only."
+          fi
