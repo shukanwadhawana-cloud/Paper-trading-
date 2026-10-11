@@ -62,10 +62,12 @@ def main():
     results = []
     for row in btc_rows:
         status, old_reason, old_r = (row.get("status") or "").upper(), row.get("exit_reason") or "", row.get("realized_r") or ""
-        result = {k: row.get(k, "") for k in ("trade_id","entry_time_utc","direction","entry","sl","tp")}
+        result = {k: row.get(k, "") for k in ("trade_id","entry_time_utc","direction","entry","sl","tp","exit_price","closed_at_utc")}
+        result["ledger_exit_price"] = result.pop("exit_price")
+        result["ledger_closed_at_utc"] = result.pop("closed_at_utc")
         result.update(ledger_status=status, ledger_exit_reason=old_reason, ledger_realized_r=old_r,
-                      replay_status="", replay_exit_reason="", replay_exit_price="", replay_realized_r="",
-                      replay_bars="", comparison="", notes="")
+                      replay_status="", replay_exit_reason="", replay_exit_price="", replay_exit_time_utc="",
+                      replay_realized_r="", r_delta_vs_ledger="", replay_bars="", comparison="", notes="")
         if old_reason == "ENTRY_VALIDITY_SKIPPED":
             result.update(replay_status="SKIPPED", replay_exit_reason=old_reason, replay_realized_r="0.00000",
                           comparison="MATCH", notes="Kept skipped; not counted as an executed trade.")
@@ -95,12 +97,15 @@ def main():
             continue
         replay_r = position.r_multiple()
         result.update(replay_status="CLOSED", replay_exit_reason=position.exit_reason,
-                      replay_exit_price=f"{position.exit_price:.5f}", replay_realized_r=f"{replay_r:.5f}")
+                      replay_exit_price=f"{position.exit_price:.5f}",
+                      replay_exit_time_utc=(post.index[exit_idx] + DELTA).isoformat(),
+                      replay_realized_r=f"{replay_r:.5f}")
         if status != "CLOSED":
             result["comparison"] = "NOT_COMPARABLE_OPEN_LEDGER"
         else:
             try:
-                result["comparison"] = "MATCH" if abs(float(old_r)-replay_r) < 0.00001 and old_reason == position.exit_reason else "MISMATCH"
+                result["r_delta_vs_ledger"] = f"{replay_r-float(old_r):+.5f}"
+                result["comparison"] = "MATCH" if abs(float(old_r)-replay_r) < 0.00001 and old_reason == position.exit_reason and abs(float(row.get("exit_price") or 0)-float(position.exit_price)) < 0.00001 else "MISMATCH"
             except (ValueError, TypeError):
                 result["comparison"] = "MISMATCH"
         results.append(result)
@@ -114,6 +119,10 @@ def main():
     wins, losses, total_r = sum(v > 0 for v in values), sum(v < 0 for v in values), sum(values)
     counts = Counter(r["comparison"] for r in results)
     mismatches = [r for r in results if r["comparison"] == "MISMATCH"]
+    ledger_executed = [r for r in btc_rows if (r.get("status") or "").upper() == "CLOSED" and (r.get("exit_reason") or "") != "ENTRY_VALIDITY_SKIPPED"]
+    ledger_total_r = sum(float(r.get("realized_r") or 0) for r in ledger_executed)
+    ledger_wins = sum(float(r.get("realized_r") or 0) > 0 for r in ledger_executed)
+    ledger_losses = sum(float(r.get("realized_r") or 0) < 0 for r in ledger_executed)
     unverifiable = [r for r in results if r["comparison"] in ("UNVERIFIABLE", "NOT_COMPARABLE_OPEN_LEDGER")]
     report = [
         "# BTC Historical Replay Audit", "",
@@ -121,10 +130,17 @@ def main():
         f"- Source ledger rows: {len(btc_rows)} BTC records",
         f"- Candle source: BingX USDT-margined swap, 15-minute OHLCV ({SYMBOL})",
         "- Method: exclude signal candle; use completed post-entry candles only; apply current trade-manager exit rules.",
+        "- Provenance limitation: the historical ledger does not store the exchange/provider used for each original exit. The current canonical replay uses BingX for every BTC candle; discrepancies cannot be conclusively attributed to one cause per row.",
+        "- Resolution rule: preserve the original ledger unchanged; use this same-source replay as the canonical comparison series and retain original values for auditability. Do not silently overwrite history.",
         "- Limits: this replay does not establish actual fills, fees, slippage, funding, or live profitability.",
+        "", "## Original ledger baseline (not independently source-verified)",
+        f"- Closed executed trades in ledger: {len(ledger_executed)}",
+        f"- Ledger wins/losses: {ledger_wins}/{ledger_losses}",
+        f"- Ledger net: {ledger_total_r:+.2f}R",
         "", "## Replayed outcomes",
         f"- Replayed closed executed trades: {len(executed)}", f"- Wins: {wins}", f"- Losses: {losses}",
         f"- Net R: {total_r:+.2f}R",
+        f"- Replay minus ledger net: {total_r-ledger_total_r:+.2f}R",
         f"- Average R per replayed closed trade: {total_r/len(executed) if executed else 0:+.3f}R",
         f"- Ledger comparison counts: {dict(counts)}", f"- Mismatches requiring review: {len(mismatches)}",
         f"- Unverifiable/open comparisons: {len(unverifiable)}", "",
@@ -133,7 +149,7 @@ def main():
         "- Any incomplete candle coverage or unverifiable trades makes the result provisional.",
         "- Inspect the row-level CSV before declaring the historical ledger reconciled.",
         "", "## Mismatches",
-        *[f"- {r['trade_id']}: ledger {r['ledger_exit_reason']} / {r['ledger_realized_r']}R vs replay {r['replay_exit_reason']} / {r['replay_realized_r']}R" for r in mismatches],
+        *[f"- {r['trade_id']}: ledger {r['ledger_exit_reason']} at {r['ledger_exit_price']} ({r['ledger_realized_r']}R, {r['ledger_closed_at_utc']}) vs BingX replay {r['replay_exit_reason']} at {r['replay_exit_price']} ({r['replay_realized_r']}R, {r['replay_exit_time_utc']}); delta {r['r_delta_vs_ledger']}R" for r in mismatches],
         "", "## Unverifiable rows",
         *[f"- {r['trade_id']}: {r['notes']}" for r in results if r['comparison'] == "UNVERIFIABLE"]
     ]
