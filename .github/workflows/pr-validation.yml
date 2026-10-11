@@ -32,6 +32,8 @@ jobs:
           python -m compileall -q main.py market_data.py paper_trade_monitor.py performance_report.py paper_trading.py trade_manager.py execution_layer.py symbols_config.py
 
       - name: Run tests when present
+        env:
+          PYTHONPATH: .
         run: |
           if find . -maxdepth 2 -type f \( -name 'test_*.py' -o -name '*_test.py' \) | grep -q .; then
             pip install pytest
