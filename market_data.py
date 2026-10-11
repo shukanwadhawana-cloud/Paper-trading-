@@ -261,6 +261,14 @@ class BingXFuturesProvider(MarketDataProvider):
         import ccxt
         self.exchange = ccxt.bingx({"enableRateLimit": True, "options": {"defaultType": "swap"}})
 
+    @staticmethod
+    def _swap_symbol(symbol: str) -> str:
+        """Convert compact ledger tickers (BTCUSDT) to CCXT linear-swap symbols."""
+        normalized = _normalize_ticker(symbol)
+        if normalized.endswith("USDT") and len(normalized) > 4:
+            return f"{normalized[:-4]}/USDT:USDT"
+        return str(symbol).strip()
+
     def get_bars(self, symbol: str, interval: str, start=None, period=None) -> pd.DataFrame:
         start_ts = _utc_timestamp(start) if start is not None else None
         if start_ts is None:
@@ -269,7 +277,7 @@ class BingXFuturesProvider(MarketDataProvider):
         now_ms = int(pd.Timestamp.now(tz="UTC").timestamp() * 1000)
         all_rows = []
         for _ in range(20):
-            batch = self.exchange.fetch_ohlcv(symbol, timeframe=interval, since=since_ms, limit=500)
+            batch = self.exchange.fetch_ohlcv(self._swap_symbol(symbol), timeframe=interval, since=since_ms, limit=500)
             if not batch:
                 break
             all_rows.extend(batch)
@@ -292,7 +300,7 @@ class BingXFuturesProvider(MarketDataProvider):
         return df
 
     def get_current_price(self, symbol: str) -> float:
-        ticker = self.exchange.fetch_ticker(symbol)
+        ticker = self.exchange.fetch_ticker(self._swap_symbol(symbol))
         price = ticker.get("last") or ticker.get("close")
         if price is None:
             raise ValueError(f"BingX returned no last price for {symbol}")
