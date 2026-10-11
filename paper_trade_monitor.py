@@ -50,16 +50,28 @@ def resolve_open_trade(trade_row: dict, provider) -> dict:
     tp_raw = trade_row.get("tp")
     tp = float(tp_raw) if tp_raw not in (None, "") else None
     confidence = trade_row["confidence"]
-    entry_time = _utc_timestamp(trade_row["entry_time_utc"])
+    # entry_time_utc stores the OPEN timestamp of the signal candle, but
+    # the strategy signal and recorded entry price are calculated from that
+    # candle's CLOSE. Do not replay the signal candle: its high/low occurred
+    # before the virtual entry and can create look-ahead exits.
+    signal_candle_open = _utc_timestamp(trade_row["entry_time_utc"])
+    interval_delta = pd.Timedelta(MONITOR_INTERVAL)
+    entry_time = signal_candle_open + interval_delta
 
     df = provider.get_bars(ticker, interval=MONITOR_INTERVAL, start=entry_time)
     if df is None or df.empty:
         return {"status": "STILL_OPEN", "locked_level_r": 0.0, "reason": "no bar data returned this run"}
 
-    # Keep provider output safe even if a future provider returns a naive index.
+    # Normalize timestamps and only replay candles that have fully closed.
+    # Provider indexes are candle OPEN times; an unfinished latest candle
+    # must not trigger a stop/trailing update using a partial high/low.
     if isinstance(df.index, pd.DatetimeIndex):
         df = df.copy()
         df.index = pd.to_datetime(df.index, utc=True)
+    now = pd.Timestamp.now(tz="UTC")
+    df = df.loc[(df.index >= entry_time) & ((df.index + interval_delta) <= now)]
+    if df.empty:
+        return {"status": "STILL_OPEN", "locked_level_r": 0.0, "reason": "no completed post-entry bars available this run"}
 
     position, exit_index = resolve_position_over_bars(
         direction=direction,
@@ -77,7 +89,9 @@ def resolve_open_trade(trade_row: dict, provider) -> dict:
     if position.exit_reason == EXIT_STILL_OPEN:
         return {"status": "STILL_OPEN", "locked_level_r": position.locked_level_r}
 
-    exit_time = _utc_timestamp(df.index[exit_index])
+    # The exit is discovered from this candle's completed OHLC; use its
+    # close timestamp as the conservative recorded resolution time.
+    exit_time = _utc_timestamp(df.index[exit_index]) + interval_delta
     return {
         "status": "CLOSED",
         "position": position,
