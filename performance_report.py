@@ -141,15 +141,15 @@ def main():
         f"- Wins / losses / breakeven: **{s['wins']} / {s['losses']} / {s['breakeven']}**",
         f"- Win rate: **{s['win_rate']:.2f}%**",
         f"- Total realized R: **{s['r']:+.2f}R**",
-        f"- Total realized P&L (CSV units): **{money(s['pnl'])}**",
+        f"- Raw price delta total (per 1 unit; NOT account P&L): **{money(s['pnl'])}**",
         f"- R profit factor: **{s['pf_r']:.2f}**" if s['gross_loss_r'] else "- R profit factor: **∞**",
-        f"- P&L profit factor: **{s['pf_pnl']:.2f}**" if s['gross_loss_pnl'] else "- P&L profit factor: **∞**",
+        f"- Raw-price-delta profit factor (not monetary): **{s['pf_pnl']:.2f}**" if s['gross_loss_pnl'] else "- Raw-price-delta profit factor (not monetary): **∞**",
         f"- Average R/trade: **{s['avg_r']:+.3f}R**",
         f"- Maximum trade-sequence drawdown: **{max_dd:.2f}R**",
         "",
         "## Best / Worst Trades",
     ]
-    for label, r in [("Best by R", best_r), ("Best by P&L", best_pnl), ("Worst by R", worst_r), ("Worst by P&L", worst_pnl)]:
+    for label, r in [("Best by R", best_r), ("Best by raw price delta", best_pnl), ("Worst by R", worst_r), ("Worst by raw price delta", worst_pnl)]:
         if r:
             lines.append(f"- {label}: **{r.get('trade_id','UNKNOWN')}** | {f(r,'realized_r'):+.2f}R | {money(f(r,'realized_pnl'))} | {r.get('exit_reason','')}")
 
@@ -158,31 +158,31 @@ def main():
     for a in sorted(by_asset):
         x = summarize(by_asset[a])
         asset_table.append((a, x["n"], x["wins"], x["losses"], f'{x["win_rate"]:.2f}%', f'{x["r"]:+.2f}R', money(x["pnl"]), f'{x["avg_r"]:+.3f}R'))
-    table(lines, ["Asset", "Trades", "Wins", "Losses", "Win Rate", "Net R", "Net P&L", "Avg R"], asset_table)
+    table(lines, ["Asset", "Trades", "Wins", "Losses", "Win Rate", "Net R", "Raw price delta (1 unit)", "Avg R"], asset_table)
 
     lines += ["", "## BUY vs SELL"]
     direction_table = []
     for d in sorted(by_direction):
         x = summarize(by_direction[d])
         direction_table.append((d, x["n"], x["wins"], x["losses"], f'{x["win_rate"]:.2f}%', f'{x["r"]:+.2f}R', money(x["pnl"]), f'{x["avg_r"]:+.3f}R'))
-    table(lines, ["Direction", "Trades", "Wins", "Losses", "Win Rate", "Net R", "Net P&L", "Avg R"], direction_table)
+    table(lines, ["Direction", "Trades", "Wins", "Losses", "Win Rate", "Net R", "Raw price delta (1 unit)", "Avg R"], direction_table)
 
     lines += ["", "## Performance by Exit Reason"]
     exit_table = []
     for e in sorted(by_exit):
         x = summarize(by_exit[e])
         exit_table.append((e, x["n"], x["wins"], x["losses"], f'{x["r"]:+.2f}R', money(x["pnl"]), f'{x["avg_r"]:+.3f}R'))
-    table(lines, ["Exit", "Trades", "Wins", "Losses", "Net R", "Net P&L", "Avg R"], exit_table)
+    table(lines, ["Exit", "Trades", "Wins", "Losses", "Net R", "Raw price delta (1 unit)", "Avg R"], exit_table)
 
     lines += ["", "## Trailing-System Distribution"]
     trail_table = []
     for level in sorted(k for k in by_trailing if k is not None):
         x = summarize(by_trailing[level])
         trail_table.append((f'{level:+.2f}R', x["n"], f'{x["n"]/s["n"]*100:.2f}%', f'{x["r"]:+.2f}R', money(x["pnl"])))
-    table(lines, ["Trailing Level", "Trades", "% Executed", "Total R", "Total P&L"], trail_table)
+    table(lines, ["Trailing Level", "Trades", "% Executed", "Total R", "Raw price delta total (1 unit)"], trail_table)
 
     lines += ["", "## Daily Performance (IST Close Date)"]
-    table(lines, ["Date", "Trades", "Wins", "Losses", "Net R", "Net P&L", "Skipped", "Cumulative R"], daily_rows)
+    table(lines, ["Date", "Trades", "Wins", "Losses", "Net R", "Raw price delta (1 unit)", "Skipped", "Cumulative R"], daily_rows)
 
     lines += ["", "## Strategy Audit Signals", ""]
     # These are observations, not automatic strategy changes.
@@ -198,7 +198,7 @@ def main():
         "- No asset or direction is automatically disabled by this report.",
         "- No trailing level is automatically changed by this report.",
         "- Use this report as an observation dataset for the one-month audit period before making permanent rule changes.",
-        "- Dollar P&L is reported exactly as stored in the CSV; R is the preferred normalized strategy-performance measure.",
+        "- The CSV field realized_pnl currently stores raw entry-to-exit price difference for a hypothetical 1-unit position, not account-currency P&L. Do not interpret these values as USDT/USD profit or loss. R is the normalized strategy-performance measure.",
     ]
 
     with open(OUT_MD, "w", encoding="utf-8") as fh:
@@ -206,7 +206,7 @@ def main():
 
     with open(DAILY_CSV, "w", newline="", encoding="utf-8") as fh:
         w = csv.writer(fh)
-        w.writerow(["date_ist_close", "trades", "wins", "losses", "net_r", "net_pnl", "skipped", "cumulative_r"])
+        w.writerow(["date_ist_close", "trades", "wins", "losses", "net_r", "raw_price_delta_1_unit", "skipped", "cumulative_r"])
         for row in daily_rows:
             w.writerow(row)
 
@@ -215,7 +215,7 @@ def main():
     print(f"Executed: {s['n']} | Skipped: {len(skipped)}")
     print(f"Win rate: {s['win_rate']:.2f}%")
     print(f"Total R: {s['r']:+.2f}R")
-    print(f"Total P&L: {money(s['pnl'])}")
+    print(f"Raw price delta total (1 unit): {money(s['pnl'])}")
     print(f"R profit factor: {s['pf_r']:.2f}" if s['gross_loss_r'] else "R profit factor: inf")
     print(f"Max drawdown: {max_dd:.2f}R")
     print(f"Strongest asset: {strongest_asset[0]} ({strongest_asset[1]:+.2f}R)")
