@@ -28,8 +28,10 @@ def fetch_history(start):
         for candle in batch:
             collected[int(candle[0])] = candle
         last_ms = int(batch[-1][0])
-        if last_ms < since or last_ms >= now_ms or len(batch) < 500:
+        if last_ms < since or last_ms >= now_ms:
             break
+        # Some exchanges return fewer than the requested limit even when more
+        # history exists. Continue pagination until the endpoint is empty or current.
         next_since = last_ms + 1
         if next_since <= since:
             break
