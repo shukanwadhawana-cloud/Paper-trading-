@@ -158,7 +158,7 @@ def _format_close_message(trade_id, trade_row, exit_reason, realized_r, realized
     ]
     if exit_price is not None:
         lines.append(f"Exit price: {float(exit_price):.5f}")
-    lines.extend([f"Realized PnL: {realized_pnl:+.5f}", f"Duration: {duration_wall_clock}"])
+    lines.extend([f"Raw price delta (per 1 unit; NOT account P&L): {realized_pnl:+.5f}", f"Duration: {duration_wall_clock}"])
     return "\n".join(lines)
 
 
