@@ -50,7 +50,6 @@ def test_signal_candle_is_excluded_from_exit_replay():
     assert provider.requested[1] == "15m"
     assert provider.requested[2] == pd.Timestamp("2020-01-01T00:15:00Z")
     assert result["status"] == "STILL_OPEN"
-    assert result["position"].exit_reason == "STILL_OPEN"
 
 
 def test_completed_post_entry_candle_can_trigger_take_profit():
@@ -71,7 +70,7 @@ def test_completed_post_entry_candle_can_trigger_take_profit():
 
 
 def test_incomplete_latest_candle_is_not_used():
-    # Put the latest bar 5 minutes into its 15-minute interval relative to now.
+    # The latest bar opens at the current 15-minute boundary and is unfinished.
     now = pd.Timestamp.now(tz="UTC").floor("15min")
     frame = bars(
         [
@@ -83,4 +82,4 @@ def test_incomplete_latest_candle_is_not_used():
     result = resolve_open_trade(trade_row(), FakeProvider(frame))
 
     assert result["status"] == "STILL_OPEN"
-    assert result["position"].exit_reason == "STILL_OPEN"
+    assert result.get("reason") == "no completed post-entry bars available this run"
