@@ -1,0 +1,42 @@
+name: BTC Historical Replay Audit
+
+on:
+  push:
+    branches:
+      - audit/btc-historical-replay
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  replay:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt pytest
+      - name: Run unit tests
+        env:
+          PYTHONPATH: .
+        run: pytest -q
+      - name: Replay BTC ledger against BingX 15-minute candles
+        env:
+          PYTHONPATH: .
+        run: python scripts/replay_btc_history.py --ledger paper_trades.csv --out-dir replay-output
+      - name: Upload replay report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: btc-historical-replay-report
+          path: replay-output/
+          if-no-files-found: warn
+          retention-days: 30
