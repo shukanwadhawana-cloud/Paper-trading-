@@ -1,19 +1,19 @@
 # Paper Trading Performance & Strategy Audit
 
 **Analysis start:** 2026-07-25
-**Generated:** 2026-10-23T21:33:26.237623+00:00
+**Generated:** 2026-10-24T21:01:23.112559+00:00
 **Daily P&L date basis:** trade close date in Asia/Kolkata (IST)
 
 ## Overall Performance
-- Executed trades: **757**
-- Skipped signals: **322**
-- Wins / losses / breakeven: **435 / 322 / 0**
-- Win rate: **57.46%**
-- Total realized R: **+70.80R**
-- Raw price delta total (per 1 unit; NOT account P&L): **+6516.35604**
-- R profit factor: **1.22**
-- Raw-price-delta profit factor (not monetary): **1.25**
-- Average R/trade: **+0.094R**
+- Executed trades: **774**
+- Skipped signals: **330**
+- Wins / losses / breakeven: **452 / 322 / 0**
+- Win rate: **58.40%**
+- Total realized R: **+86.40R**
+- Raw price delta total (per 1 unit; NOT account P&L): **+7986.79522**
+- R profit factor: **1.27**
+- Raw-price-delta profit factor (not monetary): **1.30**
+- Average R/trade: **+0.112R**
 - Maximum trade-sequence drawdown: **-32.80R**
 
 ## Best / Worst Trades
@@ -25,36 +25,36 @@
 ## Performance by Asset
 | Asset | Trades | Wins | Losses | Win Rate | Net R | Raw price delta (1 unit) | Avg R |
 |---|---|---|---|---|---|---|---|
-| AVAX/USDT | 88 | 50 | 38 | 56.82% | +3.80R | +0.69135 | +0.043R |
-| BNB/USDT | 91 | 50 | 41 | 54.95% | -6.20R | -36.12172 | -0.068R |
-| BTC/USDT | 115 | 73 | 42 | 63.48% | +16.60R | +6008.77809 | +0.144R |
-| ETH/USDT | 116 | 72 | 44 | 62.07% | +12.40R | +92.33123 | +0.107R |
-| LINK/USDT | 89 | 47 | 42 | 52.81% | -7.20R | -0.86900 | -0.081R |
-| SOL/USDT | 98 | 64 | 34 | 65.31% | +18.80R | +17.58988 | +0.192R |
+| AVAX/USDT | 91 | 53 | 38 | 58.24% | +5.60R | +0.97612 | +0.062R |
+| BNB/USDT | 92 | 51 | 41 | 55.43% | -5.60R | -33.68592 | -0.061R |
+| BTC/USDT | 118 | 76 | 42 | 64.41% | +19.60R | +7395.82351 | +0.166R |
+| ETH/USDT | 119 | 75 | 44 | 63.03% | +16.60R | +171.11118 | +0.139R |
+| LINK/USDT | 92 | 50 | 42 | 54.35% | -4.20R | -0.41081 | -0.046R |
+| SOL/USDT | 100 | 66 | 34 | 66.00% | +20.00R | +18.99602 | +0.200R |
 | XAUT/USDT | 59 | 19 | 40 | 32.20% | +21.60R | +433.77005 | +0.366R |
-| XRP/USDT | 101 | 60 | 41 | 59.41% | +11.00R | +0.18616 | +0.109R |
+| XRP/USDT | 103 | 62 | 41 | 60.19% | +12.80R | +0.21507 | +0.124R |
 
 ## BUY vs SELL
 | Direction | Trades | Wins | Losses | Win Rate | Net R | Raw price delta (1 unit) | Avg R |
 |---|---|---|---|---|---|---|---|
 | BUY | 430 | 258 | 172 | 60.00% | +80.00R | +4417.93335 | +0.186R |
-| SELL | 327 | 177 | 150 | 54.13% | -9.20R | +2098.42269 | -0.028R |
+| SELL | 344 | 194 | 150 | 56.40% | +6.40R | +3568.86187 | +0.019R |
 
 ## Performance by Exit Reason
 | Exit | Trades | Wins | Losses | Net R | Raw price delta (1 unit) | Avg R |
 |---|---|---|---|---|---|---|
 | SL | 322 | 0 | 322 | -322.00R | -26425.28689 | -1.000R |
 | TAKE_PROFIT | 13 | 13 | 0 | +52.00R | +4399.99830 | +4.000R |
-| TRAILING_STOP | 422 | 422 | 0 | +340.80R | +28541.64463 | +0.808R |
+| TRAILING_STOP | 439 | 439 | 0 | +356.40R | +30012.08381 | +0.812R |
 
 ## Trailing-System Distribution
 | Trailing Level | Trades | % Executed | Total R | Raw price delta total (1 unit) |
 |---|---|---|---|---|
-| +0.60R | 326 | 43.06% | +195.60R | +18923.78852 |
-| +1.20R | 70 | 9.25% | +84.00R | +6496.00793 |
-| +1.80R | 13 | 1.72% | +23.40R | +1213.80156 |
-| +2.40R | 4 | 0.53% | +9.60R | +1380.62307 |
-| +3.00R | 7 | 0.92% | +21.00R | +361.62699 |
+| +0.60R | 335 | 43.28% | +201.00R | +19119.03817 |
+| +1.20R | 77 | 9.95% | +92.40R | +7735.74306 |
+| +1.80R | 14 | 1.81% | +25.20R | +1249.25596 |
+| +2.40R | 4 | 0.52% | +9.60R | +1380.62307 |
+| +3.00R | 7 | 0.90% | +21.00R | +361.62699 |
 | +3.60R | 2 | 0.26% | +7.20R | +165.79656 |
 
 ## Daily Performance (IST Close Date)
@@ -115,13 +115,14 @@
 | 2026-10-21 | 10 | 7 | 3 | +1.80R | +658.28849 | 2 | +66.20R |
 | 2026-10-22 | 18 | 13 | 5 | +4.60R | +370.02108 | 1 | +70.80R |
 | 2026-10-23 | 6 | 3 | 3 | -0.00R | -9.17948 | 3 | +70.80R |
+| 2026-10-24 | 17 | 17 | 0 | +15.60R | +1470.43918 | 8 | +86.40R |
 
 ## Strategy Audit Signals
 
 - Strongest asset by R: **XAUT/USDT (+21.60R)**
-- Weakest asset by R: **LINK/USDT (-7.20R)**
+- Weakest asset by R: **BNB/USDT (-5.60R)**
 - Strongest direction by R: **BUY (+80.00R)**
-- Weakest direction by R: **SELL (-9.20R)**
+- Weakest direction by R: **SELL (+6.40R)**
 - No asset or direction is automatically disabled by this report.
 - No trailing level is automatically changed by this report.
 - Use this report as an observation dataset for the one-month audit period before making permanent rule changes.
