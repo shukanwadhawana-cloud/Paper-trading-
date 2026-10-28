@@ -1,19 +1,19 @@
 # Paper Trading Performance & Strategy Audit
 
 **Analysis start:** 2026-07-25
-**Generated:** 2026-10-27T22:27:56.583169+00:00
+**Generated:** 2026-10-28T22:44:08.865574+00:00
 **Daily P&L date basis:** trade close date in Asia/Kolkata (IST)
 
 ## Overall Performance
-- Executed trades: **803**
+- Executed trades: **809**
 - Skipped signals: **335**
-- Wins / losses / breakeven: **464 / 339 / 0**
-- Win rate: **57.78%**
-- Total realized R: **+78.40R**
-- Raw price delta total (per 1 unit; NOT account P&L): **+7203.70355**
-- R profit factor: **1.23**
-- Raw-price-delta profit factor (not monetary): **1.25**
-- Average R/trade: **+0.098R**
+- Wins / losses / breakeven: **469 / 340 / 0**
+- Win rate: **57.97%**
+- Total realized R: **+80.40R**
+- Raw price delta total (per 1 unit; NOT account P&L): **+6860.09568**
+- R profit factor: **1.24**
+- Raw-price-delta profit factor (not monetary): **1.24**
+- Average R/trade: **+0.099R**
 - Maximum trade-sequence drawdown: **-32.80R**
 
 ## Best / Worst Trades
@@ -26,33 +26,33 @@
 | Asset | Trades | Wins | Losses | Win Rate | Net R | Raw price delta (1 unit) | Avg R |
 |---|---|---|---|---|---|---|---|
 | AVAX/USDT | 95 | 55 | 40 | 57.89% | +4.80R | +0.85121 | +0.051R |
-| BNB/USDT | 96 | 52 | 44 | 54.17% | -6.20R | -45.15902 | -0.065R |
-| BTC/USDT | 125 | 80 | 45 | 64.00% | +19.00R | +6696.84704 | +0.152R |
+| BNB/USDT | 97 | 53 | 44 | 54.64% | -5.60R | -41.84642 | -0.058R |
+| BTC/USDT | 126 | 80 | 46 | 63.49% | +18.00R | +6349.89876 | +0.143R |
 | ETH/USDT | 124 | 77 | 47 | 62.10% | +14.80R | +99.30139 | +0.119R |
 | LINK/USDT | 95 | 51 | 44 | 53.68% | -5.60R | -0.60958 | -0.059R |
 | SOL/USDT | 102 | 67 | 35 | 65.69% | +19.60R | +18.50783 | +0.192R |
 | XAUT/USDT | 59 | 19 | 40 | 32.20% | +21.60R | +433.77005 | +0.366R |
-| XRP/USDT | 107 | 63 | 44 | 58.88% | +10.40R | +0.19463 | +0.097R |
+| XRP/USDT | 111 | 67 | 44 | 60.36% | +12.80R | +0.22244 | +0.115R |
 
 ## BUY vs SELL
 | Direction | Trades | Wins | Losses | Win Rate | Net R | Raw price delta (1 unit) | Avg R |
 |---|---|---|---|---|---|---|---|
-| BUY | 434 | 259 | 175 | 59.68% | +79.40R | +4406.46025 | +0.183R |
-| SELL | 369 | 205 | 164 | 55.56% | -1.00R | +2797.24330 | -0.003R |
+| BUY | 439 | 264 | 175 | 60.14% | +82.40R | +4409.80066 | +0.188R |
+| SELL | 370 | 205 | 165 | 55.41% | -2.00R | +2450.29502 | -0.005R |
 
 ## Performance by Exit Reason
 | Exit | Trades | Wins | Losses | Net R | Raw price delta (1 unit) | Avg R |
 |---|---|---|---|---|---|---|
-| SL | 339 | 0 | 339 | -339.00R | -28399.41019 | -1.000R |
+| SL | 340 | 0 | 340 | -340.00R | -28746.35847 | -1.000R |
 | TAKE_PROFIT | 13 | 13 | 0 | +52.00R | +4399.99830 | +4.000R |
-| TRAILING_STOP | 451 | 451 | 0 | +365.40R | +31203.11544 | +0.810R |
+| TRAILING_STOP | 456 | 456 | 0 | +368.40R | +31206.45585 | +0.808R |
 
 ## Trailing-System Distribution
 | Trailing Level | Trades | % Executed | Total R | Raw price delta total (1 unit) |
 |---|---|---|---|---|
-| +0.60R | 346 | 43.09% | +207.60R | +20300.44479 |
-| +1.20R | 77 | 9.59% | +92.40R | +7735.74306 |
-| +1.80R | 14 | 1.74% | +25.20R | +1249.25596 |
+| +0.60R | 351 | 43.39% | +210.60R | +20303.78520 |
+| +1.20R | 77 | 9.52% | +92.40R | +7735.74306 |
+| +1.80R | 14 | 1.73% | +25.20R | +1249.25596 |
 | +2.40R | 5 | 0.62% | +12.00R | +1390.24808 |
 | +3.00R | 7 | 0.87% | +21.00R | +361.62699 |
 | +3.60R | 2 | 0.25% | +7.20R | +165.79656 |
@@ -119,13 +119,14 @@
 | 2026-10-25 | 9 | 6 | 3 | +0.60R | +515.84685 | 2 | +87.00R |
 | 2026-10-26 | 10 | 5 | 5 | -2.00R | -274.09674 | 0 | +85.00R |
 | 2026-10-27 | 10 | 1 | 9 | -6.60R | -1024.84178 | 3 | +78.40R |
+| 2026-10-28 | 6 | 5 | 1 | +2.00R | -343.60787 | 0 | +80.40R |
 
 ## Strategy Audit Signals
 
 - Strongest asset by R: **XAUT/USDT (+21.60R)**
-- Weakest asset by R: **BNB/USDT (-6.20R)**
-- Strongest direction by R: **BUY (+79.40R)**
-- Weakest direction by R: **SELL (-1.00R)**
+- Weakest asset by R: **BNB/USDT (-5.60R)**
+- Strongest direction by R: **BUY (+82.40R)**
+- Weakest direction by R: **SELL (-2.00R)**
 - No asset or direction is automatically disabled by this report.
 - No trailing level is automatically changed by this report.
 - Use this report as an observation dataset for the one-month audit period before making permanent rule changes.
