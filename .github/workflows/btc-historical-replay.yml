@@ -4,8 +4,14 @@ on:
   push:
     branches:
       - audit/btc-historical-replay
+  # This is a historical BTC-ledger audit, not a general PR gate.
+  # Run it on PRs only when its inputs or replay logic actually change.
   pull_request:
     branches: [main]
+    paths:
+      - "paper_trades.csv"
+      - "trade_manager.py"
+      - "scripts/replay_btc_history.py"
   workflow_dispatch:
 
 permissions:
