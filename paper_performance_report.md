@@ -1,16 +1,16 @@
 # Paper Trading Performance & Strategy Audit
 
 **Analysis start:** 2026-07-25
-**Generated:** 2026-11-22T23:42:46.345634+00:00
+**Generated:** 2026-11-24T04:00:12.720003+00:00
 **Daily P&L date basis:** trade close date in Asia/Kolkata (IST)
 
 ## Overall Performance
-- Executed trades: **1032**
-- Skipped signals: **395**
-- Wins / losses / breakeven: **604 / 428 / 0**
-- Win rate: **58.53%**
-- Total realized R: **+114.00R**
-- Raw price delta total (per 1 unit; NOT account P&L): **+9344.48850**
+- Executed trades: **1035**
+- Skipped signals: **398**
+- Wins / losses / breakeven: **606 / 429 / 0**
+- Win rate: **58.55%**
+- Total realized R: **+114.20R**
+- Raw price delta total (per 1 unit; NOT account P&L): **+9353.69116**
 - R profit factor: **1.27**
 - Raw-price-delta profit factor (not monetary): **1.24**
 - Average R/trade: **+0.110R**
@@ -26,33 +26,33 @@
 | Asset | Trades | Wins | Losses | Win Rate | Net R | Raw price delta (1 unit) | Avg R |
 |---|---|---|---|---|---|---|---|
 | AVAX/USDT | 124 | 73 | 51 | 58.87% | +6.40R | +1.27813 | +0.052R |
-| BNB/USDT | 126 | 67 | 59 | 53.17% | -5.80R | -31.91316 | -0.046R |
+| BNB/USDT | 127 | 67 | 60 | 52.76% | -6.80R | -37.69352 | -0.054R |
 | BTC/USDT | 157 | 98 | 59 | 62.42% | +18.20R | +8547.31127 | +0.116R |
-| ETH/USDT | 155 | 98 | 57 | 63.23% | +26.80R | +371.96221 | +0.173R |
+| ETH/USDT | 156 | 99 | 57 | 63.46% | +27.40R | +386.93877 | +0.176R |
 | LINK/USDT | 125 | 65 | 60 | 52.00% | -6.20R | -0.76507 | -0.050R |
 | SOL/USDT | 138 | 91 | 47 | 65.94% | +30.20R | +22.50897 | +0.219R |
 | XAUT/USDT | 59 | 19 | 40 | 32.20% | +21.60R | +433.77005 | +0.366R |
-| XRP/USDT | 148 | 93 | 55 | 62.84% | +22.80R | +0.33610 | +0.154R |
+| XRP/USDT | 149 | 94 | 55 | 63.09% | +23.40R | +0.34256 | +0.157R |
 
 ## BUY vs SELL
 | Direction | Trades | Wins | Losses | Win Rate | Net R | Raw price delta (1 unit) | Avg R |
 |---|---|---|---|---|---|---|---|
 | BUY | 454 | 272 | 182 | 59.91% | +82.00R | +5934.52617 | +0.181R |
-| SELL | 578 | 332 | 246 | 57.44% | +32.00R | +3409.96233 | +0.055R |
+| SELL | 581 | 334 | 247 | 57.49% | +32.20R | +3419.16499 | +0.055R |
 
 ## Performance by Exit Reason
 | Exit | Trades | Wins | Losses | Net R | Raw price delta (1 unit) | Avg R |
 |---|---|---|---|---|---|---|
-| SL | 428 | 0 | 428 | -428.00R | -38475.53879 | -1.000R |
+| SL | 429 | 0 | 429 | -429.00R | -38481.31915 | -1.000R |
 | TAKE_PROFIT | 17 | 17 | 0 | +68.00R | +4473.26495 | +4.000R |
-| TRAILING_STOP | 587 | 587 | 0 | +474.00R | +43346.76234 | +0.807R |
+| TRAILING_STOP | 589 | 589 | 0 | +475.20R | +43361.74536 | +0.807R |
 
 ## Trailing-System Distribution
 | Trailing Level | Trades | % Executed | Total R | Raw price delta total (1 unit) |
 |---|---|---|---|---|
-| +0.60R | 449 | 43.51% | +269.40R | +27753.94106 |
-| +1.20R | 102 | 9.88% | +122.40R | +12270.89809 |
-| +1.80R | 20 | 1.94% | +36.00R | +1365.10894 |
+| +0.60R | 451 | 43.57% | +270.60R | +27768.92408 |
+| +1.20R | 102 | 9.86% | +122.40R | +12270.89809 |
+| +1.80R | 20 | 1.93% | +36.00R | +1365.10894 |
 | +2.40R | 5 | 0.48% | +12.00R | +1390.24808 |
 | +3.00R | 9 | 0.87% | +27.00R | +400.76961 |
 | +3.60R | 2 | 0.19% | +7.20R | +165.79656 |
@@ -145,13 +145,15 @@
 | 2026-11-20 | 22 | 19 | 3 | +10.80R | +3228.75377 | 10 | +122.20R |
 | 2026-11-21 | 8 | 2 | 6 | -4.80R | -13.84465 | 3 | +117.40R |
 | 2026-11-22 | 5 | 1 | 4 | -3.40R | -23.23434 | 6 | +114.00R |
+| 2026-11-23 | 1 | 1 | 0 | +0.60R | +0.00646 | 1 | +114.60R |
+| 2026-11-24 | 2 | 1 | 1 | -0.40R | +9.19620 | 2 | +114.20R |
 
 ## Strategy Audit Signals
 
 - Strongest asset by R: **SOL/USDT (+30.20R)**
-- Weakest asset by R: **LINK/USDT (-6.20R)**
+- Weakest asset by R: **BNB/USDT (-6.80R)**
 - Strongest direction by R: **BUY (+82.00R)**
-- Weakest direction by R: **SELL (+32.00R)**
+- Weakest direction by R: **SELL (+32.20R)**
 - No asset or direction is automatically disabled by this report.
 - No trailing level is automatically changed by this report.
 - Use this report as an observation dataset for the one-month audit period before making permanent rule changes.
