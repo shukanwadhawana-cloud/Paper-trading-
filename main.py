@@ -4,7 +4,7 @@ Structure-detection logic ported from LuxAlgo's "Smart Money Concepts" indicator
 (CC BY-NC-SA 4.0, https://creativecommons.org/licenses/by-nc-sa/4.0/, (c) LuxAlgo)
 Ported to Python for personal, non-commercial alerting use.
 
-- Pulls 15m candles for Gold (GC=F) and Silver (SI=F) via yfinance
+- Pulls 15m ETH/USDT perpetual candles from the existing BingX CCXT data client (signal feed only; not live execution)
 - Detects swing structure via a lag-based "leg" detector (same method as the
   original indicator), then flags BOS / CHoCH on close crossing the last
   unbroken swing pivot
@@ -28,7 +28,7 @@ from trade_manager import is_executable
 
 # ================= CONFIG =================
 # SYMBOLS: each entry controls whether the Asia/London/US session filter applies.
-# Gold/Silver (futures, near-24h but with real weekly closes) benefit from session filtering.
+# ETH trades 24/7; session filtering is disabled.
 # Bitcoin/Ethereum trade 24/7/365 - forcing them through forex sessions would suppress
 # valid signals outside those windows, so session filtering is off for them by default.
 SYMBOLS = {
