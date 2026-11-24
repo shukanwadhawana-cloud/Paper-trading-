@@ -12,7 +12,6 @@ on:
       - "paper_trades.csv"
       - "trade_manager.py"
       - "scripts/replay_btc_history.py"
-      - ".github/workflows/btc-historical-replay.yml"
   workflow_dispatch:
 
 permissions:
