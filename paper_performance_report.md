@@ -1,7 +1,7 @@
 # Paper Trading Performance & Strategy Audit
 
 **Analysis start:** 2026-07-25
-**Generated:** 2026-11-26T01:53:02.215998+00:00
+**Generated:** 2026-11-27T01:50:48.442392+00:00
 **Daily P&L date basis:** trade close date in Asia/Kolkata (IST)
 
 ## Overall Performance
